@@ -1,6 +1,6 @@
 # Dino Run
 
-[Play on a portrait phone](https://nquarex.github.io/DinoPlat3d/)
+[Play on a portrait phone](https://nquarex.github.io/DinoPlat3D/)
 
 A lightweight, touch-only endless 3D runner built with Three.js 0.186.1, TypeScript and Vite. Static files only: **no game server, Node.js runtime, accounts or CDN are required on GitHub Pages**. The separate original DinoPlat repository/game is untouched.
 
@@ -91,7 +91,7 @@ The committed workflow `.github/workflows/pages.yml` builds/tests and deploys `d
 3. Enable Actions if disabled; run **Build and deploy static game** or push to main.
 4. Wait for the deploy job/environment to finish, then open the URL above.
 
-Vite uses relative asset paths so the `/DinoPlat3d/` subpath works on static hosting. Only development/build needs Node.js; Pages serves HTML/JS/CSS/fonts/GLB/WebP/icons. No backend routes or server-only code.
+Vite uses relative asset paths so the current `/DinoPlat3D/` subpath works on static hosting. Only development/build needs Node.js; Pages serves HTML/JS/CSS/fonts/GLB/WebP/icons. No backend routes or server-only code. GitHub Pages paths are case-sensitive; use the play link above.
 
 ## Architecture and verification
 

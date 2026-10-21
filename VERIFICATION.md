@@ -9,6 +9,8 @@
 - Pit rims use irregular seeded stones in three silhouette/size variants, reusing cached geometry. Scenery is bounded to5696 entries including4096 rim slots and13 instanced banks; dry footprints, world-coordinate stability, culling and disposal have targeted coverage.
 - Footsteps use12 actual Kenney CC0 takes and ten ground/bridge profiles. Local MP3 is171197bytes; measured WebKit48kHz decode4102680bytes remains below4MiB. Isolated Chromium/WebKit audio checks cover audible output, codec alignment, impacts, mute and bounded sources. Sources/references are in ASSETS.md.
 - A new record compares whole metres with the previous best before saving and celebrates once after Game Over. Finite trophy/confetti animation, ties, reduced motion, lifecycle cleanup and Play-button visibility pass the isolated Chromium browser test. No new runtime dependency, shader, texture or animation RAF was added.
+- Production TypeScript/Vite build, focused unit checks, isolated record-effect browser coverage and complete Chromium/WebKit mobile profiles pass. The profiles include native controls, slope camera, terrain/pits, GPU instance uploads, DEV/shop/audio/pause and30 warmed resets, with no JS/WebGL errors. Remaining route seeds79–100 also pass after updating the pilot to stop ducking for already-passed birds; the full100-seed gate still runs in CI. Physical-phone FPS is unmeasured.
+- GitHub reports the canonical repository/Page path as `DinoPlat3D` on2026-10-21. The old lowercase-final-d Pages URL returns404; the capital-D URL returns200. README now links the actual page; relative Vite asset paths already support it.
 
 ## Current terrain readability and movement update
 
