@@ -9,6 +9,8 @@ export class Rules {
   static startSpeed = 12;
   static immunitySeconds = 2;
   static hitStopSeconds = 1;
+  static readonly turnScoreHoldLimit = 3;
+  static readonly turnScoreReleaseDelay = 3;
   static deathSeconds = 1.25;
   static readonly cactusScale = 2;
   static readonly chunkSize = 16;

@@ -144,7 +144,7 @@ export class GameUI {
     const values0 = game.wallet.coins,
       values1 = game.wallet.diamonds,
       values2 = game.health.lives,
-      values3 = Math.floor(game.distance),
+      values3 = Math.floor(game.scoreDistance ?? game.distance),
       values4 = this.best;
     for (let i = 0; i < 5; i++) {
       const value =
@@ -196,7 +196,8 @@ export class GameUI {
     this.element("pause-title").textContent = "ПАУЗА";
     (this.element("resume") as HTMLButtonElement).disabled = false;
     if (phase === "over") {
-      const distance = Number.isFinite(game.distance) ? Math.max(0, Math.floor(game.distance)) : 0;
+      const runScore = game.scoreDistance ?? game.distance;
+      const distance = Number.isFinite(runScore) ? Math.max(0, Math.floor(runScore)) : 0;
       const newRecord = !this.runFinished && distance > this.best;
       if (!this.runFinished) {
         this.runFinished = true;
@@ -213,7 +214,7 @@ export class GameUI {
       this.title.textContent = "ГЛАВНОЕ МЕНЮ";
       this.description.textContent = "";
       this.chapter.textContent = "";
-      this.element("final-distance").textContent = this.format(game.distance);
+      this.element("final-distance").textContent = this.format(runScore);
       this.action.textContent = "НАЧАТЬ ЗАБЕГ →";
       this.element("live").textContent =
         `Конец игры. ${distance} метров.${newRecord ? " Новый рекорд." : ""}`;

@@ -46,6 +46,8 @@ type Field = {
 };
 const STRUCTURAL = new Set([
   "step",
+  "turnScoreHoldLimit",
+  "turnScoreReleaseDelay",
   "cactusScale",
   "chunkSize",
   "candidatesPerChunk",

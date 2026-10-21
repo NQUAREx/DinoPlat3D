@@ -46,6 +46,12 @@ export class Simulation {
   crouchRemaining = 0;
   distance = 0;
   previousDistance = 0;
+  /** Fair score distance; world distance continues driving movement/generation. */
+  scoreDistance = 0;
+  previousScoreDistance = 0;
+  turnHoldElapsed = 0;
+  scoreResumeRemaining = 0;
+  scoreLocked = false;
   speed = Rules.startSpeed;
   runSpeed = Rules.startSpeed;
   terrainGrade = 0;
@@ -72,6 +78,9 @@ export class Simulation {
     this.heading = this.previousHeading = this.movingX = this.steering = 0;
     this.viewHeading = this.viewX = this.viewZ = NaN;
     this.velocityY = this.distance = this.previousDistance = this.time = 0;
+    this.scoreDistance = this.previousScoreDistance = 0;
+    this.turnHoldElapsed = this.scoreResumeRemaining = 0;
+    this.scoreLocked = false;
     this.groundVelocity = 0;
     this.jumpActive = false;
     this.previousTime = this.previousBob = 0;
@@ -96,10 +105,16 @@ export class Simulation {
     this.events.emit(GameEvent.Start);
   }
   move(direction: number) {
-    this.steering =
+    const next =
       this.phase === "running" && !this.hitStopRemaining
         ? Math.sign(direction)
         : 0;
+    if (this.steering && !next) {
+      if (this.scoreLocked)
+        this.scoreResumeRemaining = Rules.turnScoreReleaseDelay;
+      else this.turnHoldElapsed = 0;
+    }
+    this.steering = next;
   }
   jump() {
     if (
@@ -154,6 +169,7 @@ export class Simulation {
     this.previousCrouch = this.crouch;
     this.previousHeading = this.heading;
     this.previousDistance = this.distance;
+    this.previousScoreDistance = this.scoreDistance;
     this.previousTime = this.time;
     if (this.hitStopRemaining > 0) {
       this.hitStopRemaining = Math.max(0, this.hitStopRemaining - dt);
@@ -197,6 +213,29 @@ export class Simulation {
     else this.runSpeed += (targetSpeed - this.runSpeed) * (1 - Math.exp(-dt / Tuning.generation.accelerationTime));
     this.speed = this.runSpeed * this.slopeSpeedFactor;
     this.distance += this.runSpeed * dt;
+    let scoreDt = dt;
+    if (this.steering !== 0) {
+      scoreDt = this.scoreLocked
+        ? 0
+        : Math.min(dt, Math.max(0, Rules.turnScoreHoldLimit - this.turnHoldElapsed));
+      this.turnHoldElapsed += dt;
+      if (this.turnHoldElapsed >= Rules.turnScoreHoldLimit) {
+        this.scoreLocked = true;
+        this.scoreResumeRemaining = 0;
+      }
+    } else {
+      this.turnHoldElapsed = 0;
+      if (this.scoreLocked) {
+        const wait = Math.min(dt, this.scoreResumeRemaining);
+        scoreDt = Math.max(0, dt - wait);
+        this.scoreResumeRemaining -= wait;
+        if (this.scoreResumeRemaining <= 1e-9) {
+          this.scoreResumeRemaining = 0;
+          this.scoreLocked = false;
+        }
+      }
+    }
+    this.scoreDistance += this.runSpeed * scoreDt;
     const midHeading = (this.heading + this.previousHeading) * 0.5;
     this.x -= Math.sin(midHeading) * this.speed * dt;
     this.z += Math.cos(midHeading) * this.speed * dt;
@@ -328,10 +367,14 @@ export class Simulation {
           this.distance =
             this.previousDistance +
             (this.distance - this.previousDistance) * enter;
+          this.scoreDistance =
+            this.previousScoreDistance +
+            (this.scoreDistance - this.previousScoreDistance) * enter;
           this.y = this.previousY + (this.y - this.previousY) * enter;
           this.previousX = this.x;
           this.previousZ = this.z;
           this.previousDistance = this.distance;
+          this.previousScoreDistance = this.scoreDistance;
           this.previousY = this.y;
           this.groundY =
             this.previousGroundY +

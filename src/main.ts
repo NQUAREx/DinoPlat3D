@@ -572,7 +572,7 @@ class GameApplication {
       if (this.game.phase === "dying") this.online?.setRunning(false);
       if (this.game.phase === "over") {
         // One lifecycle submission, no telemetry/network work per simulation step.
-        void this.online?.finishRun({ score: this.game.distance, coins: this.earnedCoins, durationMs: this.game.time * 1000 });
+        void this.online?.finishRun({ score: this.game.scoreDistance, coins: this.earnedCoins, durationMs: this.game.time * 1000 });
       }
       if (this.game.phase !== "running") this.sound.setRunning(false);
       this.input?.clear();

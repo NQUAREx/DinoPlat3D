@@ -93,6 +93,36 @@ test("path distance counts actual travel independently of world position in all 
   assert.ok(Math.abs(game.distance - travelled) < 1e-9);
   assert.ok(game.distance > Math.hypot(game.x, game.z) * 2);
 });
+test("score pauses after a 3s held turn and resumes 3s after release", () => {
+  const game = emptyGame();
+  game.move(1);
+  const tick = (seconds: number) => {
+    for (let i = 0; i < Math.round(seconds / STEP); i++) game.step(STEP);
+  };
+  tick(2);
+  assert.ok(game.scoreDistance > 20);
+  game.move(-1); // Changing sides without lifting still counts as one continuous hold.
+  tick(1.1);
+  const lockedScore = game.scoreDistance;
+  assert.ok(game.scoreLocked);
+  tick(0.5);
+  assert.equal(game.scoreDistance, lockedScore);
+  game.move(0);
+  tick(2.9);
+  assert.equal(game.scoreDistance, lockedScore);
+  tick(0.2);
+  assert.ok(game.scoreDistance > lockedScore);
+  assert.ok(game.distance - game.scoreDistance > 30, "world travel continues while score accrual is suppressed");
+});
+test("short turns do not trigger the anti-circling score pause", () => {
+  const game = emptyGame();
+  game.move(-1);
+  for (let i = 0; i < 2 * 120; i++) game.step(STEP);
+  game.move(0);
+  for (let i = 0; i < 120; i++) game.step(STEP);
+  assert.equal(game.scoreLocked, false);
+  assert.ok(Math.abs(game.scoreDistance - game.distance) < 1e-8);
+});
 test("2D cell pool is bounded, deterministic after reentry, and generates both axes", () => {
   const pool = new WorldSpawner();
   pool.reset(1979);
