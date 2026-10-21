@@ -4,3 +4,4 @@ test-results/
 *.local
 *.blend1
 __pycache__/
+supabase/.temp/
