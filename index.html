@@ -115,12 +115,16 @@
               </svg>
             </button>
             <button id="help-toggle" class="menu-tab" aria-label="Справка" aria-pressed="false"><span aria-hidden="true">?</span></button>
+            <button id="leaderboard-toggle" class="menu-tab" aria-label="Таблица лидеров" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2h18v4h2v7h-5v3h-4v3h5v3H5v-3h5v-3H6v-3H1V6h2zm0 6v3h3V8zm15 0v3h3V8z" /></svg></button>
             <button id="developer-toggle" class="menu-tab" aria-label="Разработчик" hidden><span aria-hidden="true">DEV</span></button>
+            <button id="admin-toggle" class="menu-tab" aria-label="Администрирование" aria-pressed="false" hidden><span aria-hidden="true">ADM</span></button>
           </nav>
           <div id="menu-content" class="menu-content">
             <section id="menu-panel" class="panel" aria-labelledby="title">
               <div id="chapter" class="chapter"></div>
               <h1 id="title">ГЛАВНОЕ МЕНЮ</h1>
+              <div class="online-profile"><span id="profile-nickname">ВЫБЕРИТЕ НИК</span><button id="profile-rename" class="online-small" type="button" aria-label="Сменить ник" hidden>НИК</button></div>
+              <p id="online-status" class="online-status" role="status"></p>
               <div class="hero-preview">
                 <div
                   id="menu-avatar"
@@ -195,6 +199,28 @@
               </div>
               <div id="shop-message" role="status" aria-live="polite"></div>
             </section>
+            <section id="leaderboard-panel" class="panel online-panel" aria-labelledby="leaderboard-title" hidden>
+              <h2 id="leaderboard-title">ТАБЛИЦА ЛИДЕРОВ</h2>
+              <div class="online-tabs" role="group" aria-label="Рейтинг"><button id="leaderboard-score" class="online-small" type="button" aria-pressed="true">МЕТРЫ</button><button id="leaderboard-coins" class="online-small" type="button" aria-pressed="false">МОНЕТЫ</button></div>
+              <div class="online-tabs" role="group" aria-label="Период"><button id="leaderboard-day" class="online-small" type="button" aria-pressed="false">ДЕНЬ</button><button id="leaderboard-week" class="online-small" type="button" aria-pressed="false">НЕДЕЛЯ</button><button id="leaderboard-all" class="online-small" type="button" aria-pressed="true">ВСЁ ВРЕМЯ</button></div>
+              <p class="online-note">Период UTC. Метры — лучший забег. Монеты — сумма собранных за забеги.</p>
+              <p id="leaderboard-personal" class="online-personal">ВАШ РЕКОРД: — · МЕСТО: —</p>
+              <button id="leaderboard-refresh" class="online-small" type="button">ОБНОВИТЬ</button>
+              <p id="leaderboard-status" class="online-status" role="status" aria-live="polite"></p>
+              <div class="online-table-scroll"><table class="online-table"><caption class="sr-only">Рейтинг игроков</caption><thead><tr><th scope="col">№</th><th scope="col">НИК</th><th scope="col">РЕКОРД</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
+            </section>
+            <section id="admin-panel" class="panel online-panel" aria-labelledby="admin-title" hidden>
+              <h2 id="admin-title">АДМИНИСТРИРОВАНИЕ</h2>
+              <p class="online-note">Вход в Supabase по email и паролю администратора.</p>
+              <div id="admin-login-form" class="online-form">
+                <label for="admin-email">EMAIL</label><input id="admin-email" data-native-input type="email" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="254" />
+                <label for="admin-password">ПАРОЛЬ</label><input id="admin-password" data-native-input type="password" autocomplete="current-password" maxlength="256" />
+                <button id="admin-login" class="pixel-button" type="button">ВОЙТИ</button>
+              </div>
+              <div id="admin-session" hidden><div class="online-tabs"><button id="admin-refresh" class="online-small" type="button">ОБНОВИТЬ</button><button id="admin-logout" class="online-small" type="button">ВЫЙТИ</button></div><dl id="admin-summary" class="online-summary"></dl></div>
+              <p id="admin-status" class="online-status" role="status" aria-live="polite"></p>
+              <a class="online-dashboard" href="https://supabase.com/dashboard/project/yusnxxdeumczuniwumvi" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ SUPABASE ↗</a>
+            </section>
             <section
               id="settings-panel"
               class="panel"
@@ -256,6 +282,17 @@
           <button id="pause-help" class="pixel-button settings-link">СПРАВКА</button>
         </section>
       </main>
+      <section id="nickname-gate" role="dialog" aria-modal="true" aria-labelledby="nickname-title" hidden>
+        <div class="panel online-form">
+          <h2 id="nickname-title">ВЫБЕРИТЕ НИК</h2>
+          <p class="online-status">Ник и рекорды публичны. Сохраняем активность игры; о новых игроках и рекордах сообщаем администратору в Telegram. Не указывайте личные данные.</p>
+          <label for="nickname-input">ИМЯ ИГРОКА</label>
+          <input id="nickname-input" data-native-input type="text" autocomplete="nickname" autocapitalize="off" spellcheck="false" minlength="3" maxlength="20" enterkeyhint="done" aria-describedby="nickname-message" />
+          <p id="nickname-message" class="online-status" role="status" aria-live="polite"></p>
+          <button id="nickname-save" class="pixel-button" type="button">СОХРАНИТЬ</button>
+          <button id="nickname-cancel" class="online-small" type="button" hidden>ОТМЕНА</button>
+        </div>
+      </section>
       <section id="developer-panel" class="panel" aria-labelledby="developer-title" hidden>
         <header><h2 id="developer-title">РАЗРАБОТЧИК</h2><button id="developer-close" class="pixel-button">ЗАКРЫТЬ</button></header>
         <p>Изменения только на эту сессию. Экспериментальные значения могут нарушить баланс. Служебная структура пулов фиксирована.</p>

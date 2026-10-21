@@ -1,0 +1,5 @@
+project_id = "dinoplat3d"
+
+[functions.game-api]
+verify_jwt = false
+entrypoint = "./functions/game-api/index.ts"

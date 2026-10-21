@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 import { chromium, webkit } from "playwright";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -55,7 +56,8 @@ try {
         errors.push(m.text());
     });
     try {
-      await page.goto(`${url}/?debug&time=9`);
+    await installOnlineFixture(page);
+    await page.goto(`${url}/?debug&time=9`);
       await page.waitForFunction(
         () =>
           window.__runner &&

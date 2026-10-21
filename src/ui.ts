@@ -88,7 +88,7 @@ export class GameUI {
       remove,
     );
   }
-  selectSection(section: "home" | "shop" | "settings" | "help") {
+  selectSection(section: "home" | "shop" | "settings" | "help" | "leaderboard" | "admin") {
     if (section !== "home") this.stopRecord();
     if (this.phase === "paused") {
       this.showPause(
@@ -113,14 +113,22 @@ export class GameUI {
     this.element("shop-panel").hidden = section !== "shop";
     this.element("settings-panel").hidden = section !== "settings";
     this.element("help-panel").hidden = section !== "help";
+    for (const name of ["leaderboard", "admin"]) {
+      const panel = document.getElementById(`${name}-panel`);
+      if (panel) panel.hidden = name !== section;
+    }
     this.app.dataset.menu = section;
-    for (const name of ["home", "shop", "settings", "help"])
+    for (const name of ["home", "shop", "settings", "help", "leaderboard", "admin"])
       this.element(`${name}-toggle`).setAttribute(
         "aria-pressed",
         String(name === section),
       );
   }
   private showPause(section: "pause" | "settings" | "help" = "pause") {
+    for (const name of ["leaderboard", "admin"]) {
+      const panel = document.getElementById(`${name}-panel`);
+      if (panel) panel.hidden = true;
+    }
     this.element("menu-shell").hidden = true;
     this.element("pause-panel").hidden = section !== "pause";
     this.element("overlay").append(this.element("settings-panel"));

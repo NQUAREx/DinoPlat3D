@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 export async function checkPolish(context, url, engine) {
   const page = await context.newPage(),
@@ -28,6 +29,7 @@ export async function checkPolish(context, url, engine) {
         return node;
       };
     });
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     await page.evaluate(() => {

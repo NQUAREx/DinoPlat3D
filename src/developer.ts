@@ -414,7 +414,7 @@ export class DeveloperPanel {
     }
   }
   private syncAccess() {
-    for (const id of ["developer-toggle", "developer-live-toggle"]) {
+    for (const id of ["developer-toggle", "developer-live-toggle", "admin-toggle"]) {
       const button = document.getElementById(id)!;
       button.hidden = !this.device.enabled;
     }

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 export async function checkContinuity(context, url, engine) {
   const page = await context.newPage();
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     const result = await page.evaluate(() => {

@@ -2,7 +2,15 @@
 
 [Play on a portrait phone](https://nquarex.github.io/DinoPlat3D/)
 
-A lightweight, touch-only endless 3D runner built with Three.js 0.186.1, TypeScript and Vite. Static files only: **no game server, Node.js runtime, accounts or CDN are required on GitHub Pages**. The separate original DinoPlat repository/game is untouched.
+A lightweight, touch-only endless 3D runner built with Three.js 0.186.1, TypeScript and Vite. GitHub Pages serves the static client; Supabase provides unique device profiles, online leaderboards and activity statistics. No Node.js server is required on Pages. The separate original DinoPlat repository/game is untouched.
+
+## Online profiles and analytics
+
+First launch requires a unique nickname. Home displays it and allows renaming. The same browser restores its private device profile; clearing browser storage loses access. Previously registered players can play offline, but runs without a server-confirmed start stay local.
+
+Leaderboards offer distance and earned-run coins for UTC day, Monday-start week and all time, including personal value/rank. Shop balances and DEV grants never raise coin rank. The author code reveals a separate Admin tab; summary data additionally requires the allowlisted Supabase Auth administrator login. Detailed player/session history, daily activity and D1/D7/D30 retention views live in the [Supabase dashboard](https://supabase.com/dashboard/project/yusnxxdeumczuniwumvi).
+
+Setup, credential retrieval, privacy/retention, free-tier limits and optional regional relay: [Supabase operations](docs/SUPABASE.md). Telegram notifications run on Supabase, not the phone. A bot must receive `/start` from the recipient before it can send private messages. Direct connectivity from every Russian ISP is not guaranteed; no proxy hosting is currently configured.
 
 ## Controls
 

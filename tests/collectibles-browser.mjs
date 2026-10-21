@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 /** Same render/collection checks in real Chromium and WebKit WebGL contexts. */
 export async function checkCollectibles(context, url, engine) {
@@ -10,6 +11,7 @@ export async function checkCollectibles(context, url, engine) {
       errors.push(m.text());
   });
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     await page.tap("#action");

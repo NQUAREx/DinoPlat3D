@@ -19,6 +19,9 @@ import { DeveloperPanel } from "./developer";
 import { Tuning } from "./tuning";
 import { Currency } from "./progression";
 import { Surface } from "./landscape";
+import { ObjectKind } from "./world";
+import { OnlineService } from "./online";
+import { OnlineUI } from "./online-ui";
 
 class GameApplication {
   readonly game = new Simulation(1979);
@@ -41,6 +44,9 @@ class GameApplication {
   private currency?: CurrencyCookies;
   private cosmetics?: CosmeticInventory;
   private developer?: DeveloperPanel;
+  private online?: OnlineService;
+  private onlineUI?: OnlineUI;
+  private earnedCoins = 0;
   private menuTimer: ReturnType<typeof setTimeout> | undefined;
   private alive = true;
   private contextLost = false;
@@ -63,6 +69,8 @@ class GameApplication {
       },
     );
     this.ui.loading();
+    this.online = new OnlineService();
+    this.onlineUI = new OnlineUI(this.online);
     this.sound.preload();
     this.currency = new CurrencyCookies(
       this.game.wallet,
@@ -71,8 +79,9 @@ class GameApplication {
     );
     this.cosmetics = new CosmeticInventory(this.game.wallet);
     new HelpUI(document.getElementById("help-content")!);
-    for (const id of ["help-panel", "settings-panel"])
+    for (const id of ["help-panel", "settings-panel", "leaderboard-panel", "admin-panel"])
       panelScroll(document.getElementById(id)!, this.abort.signal);
+    panelScroll(document.querySelector<HTMLElement>("#nickname-gate .panel")!, this.abort.signal);
     this.ui.initializeShop(
       this.cosmetics,
       (id) => {
@@ -162,9 +171,13 @@ class GameApplication {
         new URL(import.meta.env.BASE_URL, location.href).pathname,
       );
       this.bind();
+      this.game.events.on(GameEvent.Collected, (kind, amount) => {
+        if (kind === ObjectKind.Coin) this.earnedCoins += amount;
+      });
       this.game.events.on(GameEvent.Hit, () => this.input?.clear());
       this.applySettings();
       this.ui.show(this.game);
+      void this.onlineUI.init();
       if (HelpUI.firstVisit()) {
         this.ui.selectSection("help");
         HelpUI.seen();
@@ -255,6 +268,12 @@ class GameApplication {
       );
     };
     touchButton(this.ui.action, () => this.start());
+    for (const section of ["leaderboard", "admin"] as const)
+      touchButton(document.getElementById(`${section}-toggle`) as HTMLButtonElement, () => {
+        if (section === "admin" && !this.developer?.device.enabled) return;
+        this.ui.selectSection(section);
+        void this.onlineUI?.refreshSection(section);
+      });
     touchButton(this.ui.cameraButton, () => {
       if (!this.view) return;
       this.input?.clear();
@@ -451,6 +470,10 @@ class GameApplication {
     this.settings.save();
   }
   start() {
+    if (!this.onlineUI?.canPlay) {
+      this.onlineUI?.requireNickname();
+      return;
+    }
     if (
       !this.alive ||
       this.contextLost ||
@@ -460,19 +483,25 @@ class GameApplication {
     )
       return;
     void this.mobile?.enterFullscreen();
-    if (this.game.phase !== "paused")
+    if (this.game.phase !== "paused") {
+      this.earnedCoins = 0;
+      this.online?.startRun();
       this.game.reset((Math.random() * 0xffffffff) >>> 0);
+    }
     this.game.phase =
       this.game.phase === "paused" ? this.resumePhase : "running";
     this.haptics.stop();
     this.sound.unlock();
     this.sound.setRunning(this.game.phase === "running");
+    this.online?.setRunning(this.game.phase === "running");
     this.input?.clear();
     this.previous = this.accumulator = 0;
     this.ui.show(this.game);
     this.schedule();
   }
   pause() {
+    this.online?.setRunning(false);
+    void this.online?.heartbeat(true);
     this.currency?.flush();
     this.input?.clear();
     this.haptics.stop();
@@ -540,6 +569,11 @@ class GameApplication {
       this.view.adapt(dt);
     }
     if (this.ui.phase !== this.game.phase) {
+      if (this.game.phase === "dying") this.online?.setRunning(false);
+      if (this.game.phase === "over") {
+        // One lifecycle submission, no telemetry/network work per simulation step.
+        void this.online?.finishRun({ score: this.game.distance, coins: this.earnedCoins, durationMs: this.game.time * 1000 });
+      }
       if (this.game.phase !== "running") this.sound.setRunning(false);
       this.input?.clear();
       this.ui.show(this.game);
@@ -570,6 +604,8 @@ class GameApplication {
     this.haptics.dispose();
     this.sound.dispose();
     this.developer?.dispose();
+    this.onlineUI?.dispose();
+    this.online?.dispose();
     this.ui.dispose();
     this.view?.dispose();
     this.view = undefined;

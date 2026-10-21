@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 export async function checkTurning(context, url, engine) {
   const page = await context.newPage(),
@@ -9,6 +10,7 @@ export async function checkTurning(context, url, engine) {
       errors.push(m.text());
   });
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     const result = await page.evaluate(() => {
@@ -101,6 +103,7 @@ export async function checkRetina(browser, url, engine) {
   });
   try {
     const page = await context.newPage();
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     const stats = await page.evaluate(() => window.__runner.stats());

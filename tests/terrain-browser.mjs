@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 /** Fixed world-space view while the floating origin crosses cell/hash seams. */
 export async function checkTerrainMotion(context, url, engine) {
@@ -6,6 +7,7 @@ export async function checkTerrainMotion(context, url, engine) {
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     const result = await page.evaluate(() => {

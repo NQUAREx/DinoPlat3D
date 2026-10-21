@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 export async function checkExpansion(browser, url, engine) {
   const context = await browser.newContext({
@@ -17,6 +18,7 @@ export async function checkExpansion(browser, url, engine) {
       errors.push(message.text());
   });
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(
       () =>

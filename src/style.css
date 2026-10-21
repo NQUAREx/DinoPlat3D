@@ -1098,3 +1098,45 @@ input[data-native-input] {
 #app:not([data-phase="running"]) #developer-live-toggle {
   display: none;
 }
+
+/* Online UI stays inside the existing portrait shell; only its list scrolls. */
+.menu-nav { gap: 0; padding-top: 0; overflow-y: auto; scrollbar-width: none; }
+.menu-tab { min-height: 48px; flex-basis: 48px; padding: 7px; }
+#admin-toggle { font-size: 8px; }
+.online-profile { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-width: 0; }
+#profile-nickname { font-size: 9px; line-height: 1.8; overflow-wrap: anywhere; }
+.online-status, .online-note { font-size: 6px; line-height: 2; overflow-wrap: anywhere; margin: 5px 0; }
+.online-status { color: #885523; }
+.online-note { color: #74603b; }
+#menu-panel > #online-status { font-size: 5px; margin: 0; }
+.online-small { min-height: 48px; border: 2px solid var(--ink); border-radius: 0; padding: 7px 5px; background: #ffe588; color: var(--ink); font: inherit; font-size: 6px; line-height: 1.8; }
+.online-small[aria-pressed="true"] { background: #7be344; box-shadow: inset 2px 2px #c2ff7c; }
+.online-small:disabled, .online-form button:disabled { opacity: .6; }
+#profile-rename { flex-shrink: 0; }
+.menu-content .online-panel { display: flex; flex-direction: column; gap: 8px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; text-align: left; }
+.online-panel h2, #nickname-title { font-size: 10px; line-height: 1.9; font-weight: 400; margin: 0 0 5px; overflow-wrap: anywhere; }
+.online-tabs { display: flex; gap: 4px; flex-shrink: 0; }
+.online-tabs > button { flex: 1; min-width: 0; }
+.online-personal { font-size: 6px; line-height: 2.2; padding: 8px; border: 2px solid #dfbc78; background: #ffe5a0; margin: 0; }
+.online-table-scroll { overflow: auto; overscroll-behavior: contain; min-height: 70px; touch-action: pan-y; }
+.online-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 6px; line-height: 2; }
+.online-table th, .online-table td { padding: 9px 3px; border-bottom: 2px solid #dfbc78; overflow-wrap: anywhere; text-align: left; }
+.online-table th:first-child { width: 28px; }
+.online-table th:last-child { width: 31%; }
+.online-table td:last-child { text-align: right; }
+.online-self { background: #dff6ba; }
+.online-form { display: flex; flex-direction: column; gap: 10px; }
+.online-form label { font-size: 7px; line-height: 1.8; }
+.online-form input { display: block; width: 100%; min-height: 48px; padding: 10px; border: 3px solid var(--ink); border-radius: 0; font: 16px/1.5 sans-serif; background: #fff9e3; color: var(--ink); }
+.online-form .pixel-button { width: 100%; font-size: 8px; }
+.online-dashboard { display: block; padding: 14px 5px; min-height: 48px; font-size: 7px; line-height: 2; color: #24597a; overflow-wrap: anywhere; }
+.online-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 5px; font-size: 7px; line-height: 2; }
+.online-summary dt { overflow-wrap: anywhere; }
+.online-summary dd { margin: 0; text-align: right; }
+#nickname-gate { position: absolute; inset: 0; z-index: 16; display: grid; place-items: center; padding: max(15px, env(safe-area-inset-top)) 15px max(15px, env(safe-area-inset-bottom)); background: #24374dbb; pointer-events: auto; overflow: auto; overscroll-behavior: contain; }
+#nickname-gate .panel { max-height: 100%; overflow: auto; text-align: left; }
+#app[data-menu="leaderboard"] #overlay, #app[data-menu="admin"] #overlay { background: transparent; }
+@media (max-height: 700px) {
+  #profile-nickname { font-size: 7px; }
+  .online-profile { gap: 4px; }
+}

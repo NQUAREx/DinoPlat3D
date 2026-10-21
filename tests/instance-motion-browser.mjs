@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { installOnlineFixture } from "./online-fixture.mjs";
 
 /** Read the actual GPU matrices immediately before each colour draw. CPU-only
  * world/camera checks cannot detect an upload skipped after a shadow capture. */
 export async function checkInstanceMotion(context, url, engine) {
   const page = await context.newPage();
   try {
+    await installOnlineFixture(page);
     await page.goto(`${url}/?debug&time=9`);
     await page.waitForFunction(() => window.__runner?.stats().textures >= 4);
     const result = await page.evaluate(() => {
