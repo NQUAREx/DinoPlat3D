@@ -110,9 +110,17 @@ test("score pauses after a 3s held turn and resumes 3s after release", () => {
   game.move(0);
   tick(2.9);
   assert.equal(game.scoreDistance, lockedScore);
+  game.move(0); // Duplicate release/clear events must not strand or restart recovery.
   tick(0.2);
   assert.ok(game.scoreDistance > lockedScore);
   assert.ok(game.distance - game.scoreDistance > 30, "world travel continues while score accrual is suppressed");
+  game.move(1);
+  tick(3.1);
+  assert.ok(game.scoreLocked, "a later long hold can trigger the guard again");
+  const secondLockScore = game.scoreDistance;
+  game.move(0);
+  tick(3.1);
+  assert.ok(game.scoreDistance > secondLockScore, "score recovers after every release");
 });
 test("short turns do not trigger the anti-circling score pause", () => {
   const game = emptyGame();

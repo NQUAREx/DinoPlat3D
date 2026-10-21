@@ -69,6 +69,24 @@ export class Input {
         },
         options,
       );
+    // Pointer capture normally routes the release back to canvas. Some mobile
+    // browsers lose that target during fullscreen/viewport changes, so retain
+    // a window-level fallback. The pointer id makes the bubbling duplicate a no-op.
+    for (const type of ["pointerup", "pointercancel"] as const)
+      window.addEventListener(
+        type,
+        (event) => {
+          if (event.pointerId !== this.pointer) return;
+          if (type === "pointerup")
+            this.gesture.move(
+              event.clientX,
+              event.clientY,
+              direction(event.clientX),
+            );
+          this.clear();
+        },
+        options,
+      );
     window.addEventListener("blur", () => this.clear(), options);
     document.addEventListener(
       "visibilitychange",

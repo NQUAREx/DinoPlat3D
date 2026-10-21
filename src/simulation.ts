@@ -109,10 +109,14 @@ export class Simulation {
       this.phase === "running" && !this.hitStopRemaining
         ? Math.sign(direction)
         : 0;
-    if (this.steering && !next) {
-      if (this.scoreLocked)
+    if (!next) {
+      // A forced input clear (hit-stop, lost capture, app switch) may already
+      // have set steering to zero. Ensure a locked run still gets its release
+      // cooldown, without restarting an already-running cooldown on duplicate
+      // clear events.
+      if (this.scoreLocked && this.scoreResumeRemaining <= 0)
         this.scoreResumeRemaining = Rules.turnScoreReleaseDelay;
-      else this.turnHoldElapsed = 0;
+      if (this.steering && !this.scoreLocked) this.turnHoldElapsed = 0;
     }
     this.steering = next;
   }
