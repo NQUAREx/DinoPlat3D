@@ -9,17 +9,17 @@ import { GameEvent } from "../src/events.ts";
 import { GameSettings } from "../src/settings.ts";
 import { GestureRecognizer } from "../src/gesture.ts";
 
-test("hold classification is exactly 10% shorter and steering still excludes swipes", () => {
-  assert.equal(GestureRecognizer.holdDelay, 40 * 0.9);
+test("shorter hold classification and sharper turning still exclude swipes", () => {
+  assert.equal(GestureRecognizer.holdDelay, 30);
   let steering = 0;
   const g = new GestureRecognizer(
     (v) => (steering = v),
     () => {},
   );
   g.begin(100, 500, 0, 1);
-  g.update(35.9);
+  g.update(29.9);
   assert.equal(steering, 0);
-  g.update(36);
+  g.update(30);
   assert.equal(steering, 1);
   g.clear();
   g.begin(100, 500, 100, 1);
@@ -27,7 +27,7 @@ test("hold classification is exactly 10% shorter and steering still excludes swi
   g.update(500);
   g.move(100, 440, 1);
   assert.equal(steering, 0);
-  assert.equal(Rules.turnSpeed, 1.6);
+  assert.equal(Rules.turnSpeed, 1.76);
 });
 
 test("forgiving cactus AABBs do not change rendering bounds or pickup reach", () => {

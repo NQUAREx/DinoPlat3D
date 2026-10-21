@@ -215,6 +215,7 @@ export class WorldSpawner {
   private seed = 1;
   private centerX = Infinity;
   private centerZ = Infinity;
+  private encounterSpeed = Rules.startSpeed;
   constructor(
     readonly registry = ObjectRegistry.defaults(),
     readonly pickupRate?: number,
@@ -229,6 +230,7 @@ export class WorldSpawner {
     this.dynamicCount = 0;
     this.walkableCount = 0;
     this.nextMovingTime = 0;
+    this.encounterSpeed = Rules.startSpeed;
     this.columns.fill(Infinity);
     this.rows.fill(Infinity);
     this.centerX = this.centerZ = Infinity;
@@ -280,7 +282,8 @@ export class WorldSpawner {
       ) / 4294967296
     );
   }
-  update(worldX: number, distance: number) {
+  update(worldX: number, distance: number, runSpeed = this.encounterSpeed) {
+    this.encounterSpeed = runSpeed;
     const cx = Math.floor(worldX / Rules.chunkSize);
     const cz = Math.floor(distance / Rules.chunkSize);
     if (cx === this.centerX && cz === this.centerZ) return;
@@ -368,6 +371,12 @@ export class WorldSpawner {
       pickup,
     );
     if (!definition) return;
+    // Thin only new obstacle candidates, never already-visible objects or
+    // pickups. Independent hash preserves deterministic visits at equal speed.
+    const difficulty = Math.max(0, Math.min(1, (this.encounterSpeed - Rules.startSpeed) /
+      Math.max(0.001, Rules.maxSpeed - Rules.startSpeed)));
+    if (!pickup && this.random(column, row, candidate, 0x7051) < difficulty * Tuning.generation.highSpeedRelief)
+      return;
     if (this.landscape?.enabled) {
       if (!this.landscape.supportAt(x, z)) return;
       if (definition.kind === ObjectKind.Cactus) {
@@ -482,6 +491,12 @@ export class WorldSpawner {
     this.previousX[slot] = this.collisionX(slot);
     this.previousZ[slot] = this.collisionZ(slot);
     this.previousBaseY[slot] = this.baseY[slot];
+    if (definition.kind === ObjectKind.Tumbleweed) {
+      this.motion[slot] = 3;
+      this.velocityX[slot] = Math.sin(angle) * 7.5;
+      this.velocityZ[slot] = Math.cos(angle) * 7.5;
+      this.fallStart[slot] = 0;
+    }
     this.active[slot] = 1;
   }
   /** Absolute support elevation; compact smooth mounds stay inside prop bounds. */
@@ -553,6 +568,7 @@ export class WorldSpawner {
             ? 0.04 * Math.sin(age * 22)
             : Math.min(Math.PI / 2, (((age - 1.1) / 1.2) ** 2 * Math.PI) / 2);
         this.updateFallBounds(i);
+        if (this.lean[i] >= Math.PI / 2) this.motion[i] = 2;
       }
       if (
         this.kinds[i] !== ObjectKind.Bird &&
@@ -568,6 +584,22 @@ export class WorldSpawner {
           const vx = this.x[i] - cameraX, vz = this.z[i] - cameraZ;
           const dot = (vx * viewSin + vz * viewCos) / Math.hypot(vx, vz);
           if (!(dot + Number.EPSILON * 4 >= Math.SQRT1_2)) continue;
+          // A crouch-only attack must not coincide with a rolling jump hazard.
+          // Predict nearby seeded tumbleweed paths before launching the bird.
+          let groundThreat = false;
+          for (let m = 0; m < this.dynamicCount; m++) {
+            const j = this.dynamic[m];
+            if (!this.active[j] || this.kinds[j] !== ObjectKind.Tumbleweed || this.motion[j] !== 3) continue;
+            const rx = this.x[j] - px, rz = this.z[j] - pz,
+              rvx = this.velocityX[j] - sin * speed, rvz = this.velocityZ[j] - cos * speed,
+              vv = rvx * rvx + rvz * rvz,
+              encounter = vv > 1e-9 ? Math.max(0, Math.min(5, -(rx * rvx + rz * rvz) / vv)) : 0;
+            const closestX = rx + rvx * encounter, closestZ = rz + rvz * encounter;
+            if (closestX * closestX + closestZ * closestZ < 2.5 * 2.5) {
+              groundThreat = true; break;
+            }
+          }
+          if (groundThreat) continue;
         } else if (d2 > 48 * 48 || d2 < 28 * 28 || dx * sin + dz * cos < -1e-9) continue;
         const inv = 1 / Math.sqrt(d2);
         this.velocityX[i] = bird ? -dx * inv * 9 : cos * 7.5;
@@ -621,7 +653,9 @@ export class WorldSpawner {
         if (this.kinds[i] === ObjectKind.Bird && d2 < 3 * 3)
           ground = Math.max(ground, this.walkHeightAt(px, pz, this.landscape.heightAt(px, pz)));
         this.baseY[i] = ground + (this.kinds[i] === ObjectKind.Bird ? 1.05 : 0);
-        if (time - this.fallStart[i] > 9 || d2 > 75 * 75) this.active[i] = 0;
+        if (this.kinds[i] === ObjectKind.Bird
+          ? time - this.fallStart[i] > 9 || d2 > 75 * 75
+          : d2 > 115 * 115) this.active[i] = 0;
       }
     }
   }

@@ -76,11 +76,11 @@ test("jump inherits uphill/downhill running velocity instead of being caught by 
   for (const grade of [-1.6, -0.6, 0, 0.6, 1.1, 1.6]) {
     const g = new Simulation(1);
     g.landscape.heightAt = (_x, z) => grade * z;
-    g.landscape.ledgeHeightAt = () => 0;
     g.landscape.surfaceAt = () => Surface.Land;
     for (const kind of [ObjectKind.Cactus, ObjectKind.Coin, ObjectKind.Diamond, ObjectKind.Heart]) g.world.registry.setWeight(kind, 0);
     g.world.active.fill(0); g.phase = "running";
-    g.distance = g.previousDistance = 1500;
+    g.distance = g.previousDistance = 4000;
+    g.runSpeed = Rules.maxSpeed;
     for (let i = 0; i < 20; i++) g.step(STEP);
     const verticalRunSpeed = g.speed * grade;
     g.jump();
@@ -94,20 +94,31 @@ test("jump inherits uphill/downhill running velocity instead of being caught by 
   }
 });
 
-test("ground speed slows uphill, gains only modestly downhill and stays unchanged on flats", () => {
+test("ground travel has equal surface speed uphill, downhill and on flat ground", () => {
   const speed: number[] = [];
   for (const grade of [1, 0, -1]) {
     const g = new Simulation(1);
     g.landscape.heightAt = (_x, z) => grade * z;
-    g.landscape.smoothHeightAt = (_x, z) => grade * z;
-    g.landscape.ledgeHeightAt = () => 0;
     g.landscape.surfaceAt = () => Surface.Land;
     for (const kind of [ObjectKind.Cactus, ObjectKind.Coin, ObjectKind.Diamond, ObjectKind.Heart]) g.world.registry.setWeight(kind, 0);
-    g.phase = "running"; g.distance = g.previousDistance = 2000;
+    g.phase = "running"; g.distance = g.previousDistance = 4000; g.runSpeed = Rules.maxSpeed;
     for (let i = 0; i < 120; i++) g.step(STEP);
-    speed.push(g.speed);
+    speed.push(g.speed * Math.hypot(1, grade));
   }
-  assert.ok(speed[0] < speed[1] * 0.7, `${speed}`);
-  assert.ok(Math.abs(speed[1] - Rules.maxSpeed) < 1e-8, `${speed}`);
-  assert.ok(speed[2] > speed[1] && speed[2] <= speed[1] * 1.12 + 1e-8, `${speed}`);
+  for (const value of speed) assert.ok(Math.abs(value - Rules.maxSpeed) < 1e-8, `${speed}`);
+});
+
+test("acceleration increases gradually and recovers smoothly after damage", () => {
+  const g = new Simulation(1); g.landscape.enabled = false;
+  g.phase = "running"; g.distance = g.previousDistance = 4000;
+  g.world.registry.setWeight(ObjectKind.Cactus, 0); g.world.active.fill(0);
+  g.step(STEP);
+  assert.ok(g.runSpeed > Rules.startSpeed && g.runSpeed < Rules.startSpeed + 0.1);
+  let previous = g.runSpeed;
+  for (let i = 0; i < 120; i++) {
+    g.step(STEP); assert.ok(g.runSpeed >= previous && g.runSpeed - previous < 0.1); previous = g.runSpeed;
+  }
+  assert.ok(g.runSpeed < Rules.maxSpeed - 1);
+  g.health.immunity = 1; g.step(STEP); assert.equal(g.runSpeed, Rules.startSpeed);
+  g.health.immunity = 0; g.step(STEP); assert.ok(g.runSpeed < Rules.startSpeed + 0.1);
 });

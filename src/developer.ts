@@ -73,6 +73,8 @@ const LIMITS: Record<string, [number, number, number]> = {
   "generation.acceptance": [0, 1, 0.01],
   "generation.speedPenalty": [0, 0.05, 0.001],
   "generation.speedGrowth": [0, 0.04, 0.001],
+  "generation.accelerationTime": [0.1, 5, 0.1],
+  "generation.highSpeedRelief": [0, 0.6, 0.05],
   "generation.corridorSpacing": [16, 64, 1],
   "generation.corridorPadding": [0.2, 5, 0.1],
   "generation.spacing": [1, 8, 0.1],

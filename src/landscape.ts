@@ -74,7 +74,7 @@ export class LandscapeField {
     // Feature centres stay >=112m from their macro-cell edges, so a 32m
     // summit island needs only this cell. Same centres/salt as vertexHeight.
     const mx = Math.floor(x / 320), mz = Math.floor(z / 320);
-    if (this.hash(mx, mz, 114) < 0.64) {
+    if (this.hash(mx, mz, 114) < 0.32 && this.hash(mx, mz, 118) < 1 / 3) {
       const px = (mx + 0.35 + 0.3 * this.hash(mx, mz, 115)) * 320;
       const pz = (mz + 0.35 + 0.3 * this.hash(mx, mz, 116)) * 320;
       if (Math.hypot(x - px, z - pz) < 32)
@@ -86,7 +86,7 @@ export class LandscapeField {
     const size = Tuning.landscape.biomeSize,
       cx = Math.floor(wx / size),
       cz = Math.floor(wz / size);
-    let closest = Infinity,
+    let closest = Infinity, patchEnabled = false,
       biome = Biome.Desert;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
@@ -99,16 +99,14 @@ export class LandscapeField {
           closest = d;
           const kind = this.hash(gx, gz, 9);
           biome = kind < 0.5 ? Biome.Lava : Biome.Meadow;
+          patchEnabled = this.hash(gx, gz, 205) < 1 / 3;
         }
       }
     if (Math.hypot(x, z) < 24) return Biome.Desert;
     if (this.lavaMaskAt(x, z) > -size * 0.04) return Biome.Lava;
-    return closest < (size * 0.26) ** 2 ? biome : Biome.Desert;
+    return closest < (size * 0.26) ** 2 && patchEnabled ? biome : Biome.Desert;
   }
   vertexHeight(x: number, z: number) {
-    return this.vertexBaseHeight(x, z) + this.vertexCliffRise(x, z);
-  }
-  private vertexBaseHeight(x: number, z: number) {
     if (!this.enabled) return 0;
     // 24m vertex clearing also keeps every interpolated point within 18m flat.
     const startup = smooth(Math.min(1, Math.max(0, (Math.hypot(x, z) - 24) / 96)));
@@ -116,12 +114,12 @@ export class LandscapeField {
     const ix = Math.floor(x / 320), iz = Math.floor(z / 320);
     // Centres have >=112m edge clearance, beyond either feature radius.
     const kind = this.hash(ix, iz, 114);
-    if (kind <= 0.8) {
+    if (kind < 0.32 || (kind >= 0.64 && kind <= 0.8)) {
       const px = (ix + 0.35 + 0.3 * this.hash(ix, iz, 115)) * 320;
       const pz = (iz + 0.35 + 0.3 * this.hash(ix, iz, 116)) * 320;
-      const radius = kind < 0.64 ? 100 : 64;
+      const radius = kind < 0.32 ? 100 : 64;
       const t = Math.max(0, 1 - Math.hypot(x - px, z - pz) / radius);
-      feature += (kind < 0.64 ? 126 : -15) * smooth(t);
+      feature += (kind < 0.32 ? 126 : -15) * smooth(t);
     }
     const hx = Math.floor(x / 96), hz = Math.floor(z / 96);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -139,35 +137,8 @@ export class LandscapeField {
     const fx = (this.hash(0, 0, 241) < 0.5 ? -1 : 1) * (28 + 28 * this.hash(0, 0, 242));
     const fz = 85 + 30 * this.hash(0, 0, 243);
     feature += 24 * smooth(Math.max(0, 1 - Math.hypot(x - fx, z - fz) / 60));
-    return Tuning.landscape.heightScale * startup * Math.max(-16.6, Math.min(126, feature + rolling));
-  }
-  /** Additive ledge component of the rendered triangles, not a collision policy. */
-  ledgeHeightAt(x: number, z: number) {
-    return this.enabled ? this.triangleValue(x, z, 4) : 0;
-  }
-  private vertexCliffRise(x: number, z: number) {
-    if (!this.enabled || Math.hypot(x, z) < 42) return 0;
-    const d = x - this.routeX(z);
-    const clearance = Math.min(Math.abs(d - Math.round(d / 32) * 32), Math.abs(z - Math.round(z / 64) * 64));
-    if (clearance < 10) return 0;
-    const ix = Math.floor(x / 48), iz = Math.floor(z / 48);
-    let rise = 0;
-    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-      const gx = ix + dx, gz = iz + dz;
-      if (this.hash(gx, gz, 221) > 0.72) continue;
-      const px = (gx + 0.25 + 0.5 * this.hash(gx, gz, 222)) * 48;
-      const pz = (gz + 0.25 + 0.5 * this.hash(gx, gz, 223)) * 48;
-      // The largest rotated, bent footprint fits inside this 23m circle.
-      if ((x - px) ** 2 + (z - pz) ** 2 >= 23 ** 2) continue;
-      const a = this.hash(gx, gz, 224) * Math.PI, c = Math.cos(a), s = Math.sin(a);
-      const u = (x - px) * c + (z - pz) * s, v = -(x - px) * s + (z - pz) * c;
-      const rx = 10 + 10 * this.hash(gx, gz, 225), rz = 9 + 7 * this.hash(gx, gz, 226);
-      const nu = Math.abs(u) / rx, nv = Math.abs(v + 1.5 * Math.sin(u / 4)) / rz;
-      const distance = this.hash(gx, gz, 228) < 0.55 ? Math.max(nu, nv) : nu + nv;
-      if (distance < 0.78)
-        rise = Math.max(rise, 2.2 + 1.4 * this.hash(gx, gz, 227));
-    }
-    return Tuning.landscape.heightScale * rise;
+    const elevation = Math.max(-16.6, Math.min(126, feature + rolling));
+    return Tuning.landscape.heightScale * startup * (elevation > 0 ? elevation / 3 : elevation);
   }
   /** Signed irregular lava footprint. Maximum radius is six old radii (linear). */
   lavaPatchMaskAt(x: number, z: number, gx: number, gz: number) {
@@ -184,7 +155,8 @@ export class LandscapeField {
     let mask = -Infinity;
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       const gx = ix + dx, gz = iz + dz;
-      if (this.hash(gx, gz, 9) < 0.5) mask = Math.max(mask, this.lavaPatchMaskAt(x, z, gx, gz));
+      if (this.hash(gx, gz, 9) < 0.5 && this.hash(gx, gz, 205) < 1 / 3)
+        mask = Math.max(mask, this.lavaPatchMaskAt(x, z, gx, gz));
     }
     return mask;
   }
@@ -221,11 +193,6 @@ export class LandscapeField {
     if (!this.enabled) return 0;
     return this.triangleValue(x, z, 0);
   }
-  /** Smooth traversable terrain only; excludes discrete blocking rock steps. */
-  smoothHeightAt(x: number, z: number) {
-    if (!this.enabled) return 0;
-    return this.triangleValue(x, z, 5);
-  }
   private triangleValue(x: number, z: number, mode: number): number {
     if (x !== this.queryX || z !== this.queryZ || this.seed !== this.querySeed || this.enabled !== this.queryEnabled)
       this.locateTriangle(x, z);
@@ -260,8 +227,6 @@ export class LandscapeField {
     throw new Error("Warped landscape lattice did not contain point");
   }
   private vertexValue(x: number, z: number, mode: number) {
-    if (mode === 4) return this.vertexCliffRise(x, z);
-    if (mode === 5) return this.vertexBaseHeight(x, z);
     if (mode === 6) return Math.max(this.pitMaskAt(x, z), this.pitMaskAt(x, z, 1));
     return mode === 0 ? this.vertexHeight(x, z) : mode === 1 ? this.hazardAt(x, z) : this.bridgeMaskAt(x, z);
   }
@@ -287,6 +252,7 @@ export class LandscapeField {
     const size = Tuning.landscape.biomeSize, ix = Math.floor(x / size), iz = Math.floor(z / size);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       const gx = ix + dx, gz = iz + dz;
+      if (this.hash(gx, gz, 205) >= 1 / 3) continue;
       const px = (gx + 0.15 + 0.7 * this.hash(gx, gz, 2)) * size;
       const pz = (gz + 0.15 + 0.7 * this.hash(gx, gz, 3)) * size;
       // Oasis lakes retain their footprint; lava varies up to six old diameters.

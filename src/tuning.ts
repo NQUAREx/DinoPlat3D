@@ -3,7 +3,9 @@ export const Tuning = {
   generation: {
     acceptance: 0.96,
     speedPenalty: 0.012,
-    speedGrowth: 0.008,
+    speedGrowth: 0.004,
+    accelerationTime: 1.2,
+    highSpeedRelief: 0.3,
     pickupClearing: 12,
     spacing: 3.3,
     corridorSpacing: 32,

@@ -1,4 +1,14 @@
-# Проверка прототипа — 17 октября 2026
+# Проверка прототипа — 21 октября 2026
+
+## Current update: traversable lower terrain, rolling scenery and surface audio
+
+- Fully fallen cacti/trees lose their damage collider; partial falls and upright obstacles still damage. Mini-cliff generation, ledge APIs and terrain-contact damage are removed. Water/lava/pit falls remain fatal.
+- Positive relief is divided by3 with42m cap; negative relief remains unchanged. Tallest-mountain macro chance is32% rather than64%. Independent seeded gates retain one-third of oasis/lava candidates. Matched field samples are91.96% desert/4.03% lava/4.01% meadow, with heights-15.60..42.00m. Retained patch contours preserve their old size/shape variation.
+- Surface pace is symmetric uphill/downhill/flat: horizontal speed is surface speed divided by sqrt(1+grade²). Path distance/footstep phase use surface distance. Turning is1.76rad/s with30ms hold classification. Smoothstep acceleration reaches its cap near3000m with1.2s easing and gradual recovery after immunity. New hazards thin by up to30% at high pace without removing live objects or changing pickups.
+- Every generated tumbleweed starts rolling at7.5m/s, including off-axis/behind-player instances. Visible tumbleweed does not expire on a9s timer. Birds defer launch when predicted ground hazards conflict with required ducking.
+- Pit rims use irregular seeded stones in three silhouette/size variants, reusing cached geometry. Scenery is bounded to5696 entries including4096 rim slots and13 instanced banks; dry footprints, world-coordinate stability, culling and disposal have targeted coverage.
+- Footsteps use12 actual Kenney CC0 takes and ten ground/bridge profiles. Local MP3 is171197bytes; measured WebKit48kHz decode4102680bytes remains below4MiB. Isolated Chromium/WebKit audio checks cover audible output, codec alignment, impacts, mute and bounded sources. Sources/references are in ASSETS.md.
+- A new record compares whole metres with the previous best before saving and celebrates once after Game Over. Finite trophy/confetti animation, ties, reduced motion, lifecycle cleanup and Play-button visibility pass the isolated Chromium browser test. No new runtime dependency, shader, texture or animation RAF was added.
 
 ## Current terrain readability and movement update
 

@@ -124,14 +124,14 @@ test("malformed or blocked cosmetic storage cannot grant invalid equipment or st
   });
   assert.equal(inventory.choose("hat-cap"), "equipped");
 });
-test("audio ships one small MP3, thirteen licensed cues and an original loop, not runtime remote requests", async () => {
+test("audio ships one small MP3, twenty-two licensed cues and an original loop, not runtime remote requests", async () => {
   const sprite = JSON.parse(
     await readFile(
       new URL("../src/assets/audio-sprite.json", import.meta.url),
       "utf8",
     ),
   );
-  assert.equal(Object.keys(sprite).length, 15);
+  assert.equal(Object.keys(sprite).length, 24);
   assert.equal(sprite.music.duration, 16);
   const bytes = await readFile(
     new URL("../public/audio/game.mp3", import.meta.url),

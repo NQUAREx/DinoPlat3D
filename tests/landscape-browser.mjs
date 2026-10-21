@@ -80,7 +80,16 @@ try {
       });
       await page.screenshot({ path: `test-results/${engine}-new-home.png` });
       await page.tap("#action");
-      await page.waitForFunction(() => window.__runner.game.distance > 1);
+      await page.waitForFunction(() => window.__runner.game.distance > 1).catch(async error => {
+        const state = await page.evaluate(() => ({
+          phase:window.__runner.game.phase, distance:window.__runner.game.distance,
+          menu:document.querySelector("#app").dataset.menu, hidden:document.hidden,
+          mobile:window.__runner.mobile(), audio:window.__runner.audio(),
+          action:document.querySelector("#action").getBoundingClientRect().toJSON(),
+          recordHidden:document.querySelector("#personal-record").hidden,
+        }));
+        throw new Error(`${error.message}\nStart state: ${JSON.stringify(state)}\nPage errors: ${JSON.stringify(errors)}`);
+      });
       const before = await page.evaluate(() => window.__runner.game.heading);
       await page.evaluate(() => {
         const canvas = document.querySelector("#game");
@@ -187,10 +196,10 @@ try {
         const r = window.__runner, g = r.game, f = g.landscape;
         r.pause();
         let place;
-        for (let z = -512; z <= 512 && !place; z += 16)
-          for (let x = -512; x <= 512 && !place; x += 16) {
+        for (let z = -1024; z <= 1024 && !place; z += 16)
+          for (let x = -1024; x <= 1024 && !place; x += 16) {
             const grade = (f.heightAt(x, z + 12) - f.heightAt(x, z - 6)) / 18;
-            if (grade > 0.8 && f.supportAt(x, z) && f.ledgeHeightAt(x, z) < 0.01) place = { x, z, grade };
+            if (grade > 0.3 && f.supportAt(x, z)) place = { x, z, grade };
           }
         if (!place) throw Error("No natural uphill camera fixture found");
         g.x = g.previousX = place.x; g.z = g.previousZ = place.z;
@@ -198,14 +207,18 @@ try {
         g.y = g.previousY = 0; g.heading = g.previousHeading = 0;
         g.world.active.fill(0); g.phase = "paused";
         r.camera.firstPerson = false; r.camera.reset();
+        r.camera.update(g.distance, 0, 3, false, 0, g.groundY, 0, g.groundY);
+        const flatQ = r.camera.camera.quaternion;
+        const flatForwardY = 2 * (flatQ.w * flatQ.x - flatQ.y * flatQ.z);
         for (let i = 0; i < 180; i++) r.camera.update(g.distance, 0, 1 / 60, false, 0, g.groundY, 0, g.groundY, f, g.x, g.z);
         r.render();
         // Pure pitch/forward-Y from quaternion, no THREE object allocation.
         const q = r.camera.camera.quaternion;
-        return { ...place, pitch: r.camera.terrainPitch, forwardY: 2 * (q.w * q.x - q.y * q.z), viewHeading: g.viewHeading, cameraX: g.viewX, cameraZ: g.viewZ };
+        return { ...place, pitch: r.camera.terrainPitch, forwardY: 2 * (q.w * q.x - q.y * q.z), flatForwardY, fov:r.camera.camera.fov, viewHeading: g.viewHeading, cameraX: g.viewX, cameraZ: g.viewZ };
       });
-      assert.ok(uphill.pitch > 0.6);
-      assert.ok(uphill.forwardY > 0, "camera looks up the hill in the actual renderer");
+      assert.ok(uphill.pitch > 0.25);
+      assert.ok(uphill.forwardY > uphill.flatForwardY + 0.1, "camera raises its view along the lower mountain");
+      assert.ok(uphill.fov > 50.5);
       assert.ok(Number.isFinite(uphill.viewHeading) && Number.isFinite(uphill.cameraX) && Number.isFinite(uphill.cameraZ));
       report[`${engine}-uphill-camera`] = uphill;
       await page.screenshot({path: `test-results/${engine}-uphill-camera.png`});

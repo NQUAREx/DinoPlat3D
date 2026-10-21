@@ -12,9 +12,12 @@ class AudioBuilder {
       chunks = [],
       sprite = {};
     const entries = [
-      ["step0", "impact/footstep_snow_000", 0.25],
-      ["step1", "impact/footstep_snow_001", 0.25],
-      ["step2", "impact/footstep_grass_000", 0.3],
+      ...["snow", "concrete", "grass", "wood"].flatMap((texture, bank) =>
+        [0, 1, 2].map((variant) => [
+          `${["sand", "stone", "grass", "wood"][bank]}${variant}`,
+          `impact/footstep_${texture}_00${variant}`,
+          texture === "snow" || texture === "grass" ? 0.20 : 0.14,
+        ])),
       ["land", "impact/impactSoft_medium_000", 0.28],
       ["hit", "impact/impactSoft_heavy_000", 0.4],
       ["ui", "interface/select_001", 0.2],
@@ -44,7 +47,7 @@ class AudioBuilder {
         "-i",
         `art/audio/${file}.ogg`,
         "-af",
-        `atrim=duration=${duration},afade=t=out:st=${duration - 0.03}:d=0.03,loudnorm=I=-18:TP=-2:LRA=7`,
+        `atrim=duration=${duration},loudnorm=I=-18:TP=-2:LRA=7,afade=t=in:d=0.002,afade=t=out:st=${duration - 0.025}:d=0.025`,
         "-ar",
         String(rate),
         "-ac",
@@ -82,8 +85,9 @@ class AudioBuilder {
         offset: samples / rate,
         duration: data.length / 2 / rate,
       };
-      chunks.push(data, Buffer.alloc(Math.round(0.06 * rate) * 2));
-      samples += data.length / 2 + Math.round(0.06 * rate);
+      const gap = Math.round((/^(sand|stone|grass|wood)/.test(name) ? 0.03 : 0.06) * rate);
+      chunks.push(data, Buffer.alloc(gap * 2));
+      samples += data.length / 2 + gap;
     }
     const seconds = 16,
       music = Buffer.alloc(seconds * rate * 2),
@@ -126,6 +130,10 @@ class AudioBuilder {
     }
     sprite.music = { offset: samples / rate, duration: seconds };
     chunks.push(music);
+    // Include codec padding headroom; browsers may decode at 48 kHz.
+    const duration48k = Math.ceil((samples / rate + seconds + 0.08) * 48000);
+    if (duration48k * 4 >= 4 * 1024 * 1024)
+      throw new Error("Audio sprite exceeds the mono 48 kHz decoded budget");
     const raw = join(temporary, "sprite.pcm");
     await writeFile(raw, Buffer.concat(chunks));
     await mkdir("public/audio", { recursive: true });

@@ -18,6 +18,7 @@ import { panelScroll } from "./panel-scroll";
 import { DeveloperPanel } from "./developer";
 import { Tuning } from "./tuning";
 import { Currency } from "./progression";
+import { Surface } from "./landscape";
 
 class GameApplication {
   readonly game = new Simulation(1979);
@@ -28,7 +29,11 @@ class GameApplication {
   private readonly abort = new AbortController();
   private readonly landscape = matchMedia("(orientation: landscape)");
   private readonly haptics = new Haptics(this.game.events);
-  private readonly sound = new GameSound(this.game.events);
+  private readonly sound = new GameSound(this.game.events, () => {
+    const g = this.game, field = g.landscape;
+    if (field.surfaceAt(g.x, g.z) === Surface.Bridge) return 9;
+    return field.biomeAt(g.x, g.z) * 3 + Math.min(2, Math.floor(field.noise(g.x, g.z, 14, 37) * 3.4));
+  });
   private readonly settings = new GameSettings();
   private view?: View;
   private input?: Input;

@@ -677,6 +677,61 @@ body[data-device="unsupported"] #mobile-required {
 .menu-content #result > span:last-child {
   font-size: 5px;
 }
+#personal-record {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 6px 10px;
+  max-width: 100%;
+  border: 3px solid var(--ink);
+  background: #7be344;
+  box-shadow: 3px 3px 0 #43b52c;
+  font-size: 8px;
+  line-height: 1.6;
+  pointer-events: none;
+}
+#personal-record > img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+.record-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.record-confetti i {
+  position: absolute;
+  top: 0;
+  width: 5px;
+  height: 7px;
+  background: var(--coral);
+  opacity: 0;
+}
+.record-confetti i:nth-child(1) { left: 5%; }
+.record-confetti i:nth-child(2) { left: 21%; background: #ffe04c; }
+.record-confetti i:nth-child(3) { left: 37%; background: #73d8ff; }
+.record-confetti i:nth-child(4) { left: 60%; }
+.record-confetti i:nth-child(5) { left: 78%; background: #ffe04c; }
+.record-confetti i:nth-child(6) { left: 92%; background: #73d8ff; }
+.record-animate > img { animation: record-badge 600ms steps(4) 1; }
+.record-animate .record-confetti i { animation: record-confetti 1400ms steps(8) 1; }
+@keyframes record-badge {
+  0% { transform: scale(.7) rotate(-12deg); }
+  65% { transform: scale(1.15) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes record-confetti {
+  0% { opacity: 0; transform: translateY(-8px) rotate(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(42px) rotate(120deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record-animate > img, .record-animate .record-confetti i { animation: none; }
+}
 #settings-panel {
   display: flex;
   flex-direction: column;

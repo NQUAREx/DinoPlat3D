@@ -181,21 +181,35 @@ test("100 seeds: safe route survives 5 minutes at max speed with 300ms reaction 
       firstHit ||= routeContext(game, seed, step);
     });
     game.phase = "running";
-    game.distance = game.previousDistance = 2000;
+    game.distance = game.previousDistance = 4000;
     game.z = game.previousZ = 2000;
     game.x = game.previousX = game.world.safeCenter(game.z);
     game.groundY = game.previousGroundY = game.landscape.heightAt(game.x, game.z);
-    game.speed = Rules.maxSpeed;
-    game.world.update(game.x, game.z);
+    game.speed = game.runSpeed = Rules.maxSpeed;
+    game.world.update(game.x, game.z, game.runSpeed);
     assert.equal(game.landscape.enabled, true, "route challenge uses terrain, hazards and dynamics");
     for (let n = 0; n < 300 / STEP; n++) {
       step = n;
       // Perceive dynamic hazards at 15 Hz; steering and physics remain 120 Hz.
+      let birdNear = false;
       if (n % 8 === 0) for (let i = 0; i < game.world.active.length; i++) {
-        if (!game.world.active[i] || game.world.motion[i] !== 3) continue;
+        if (!game.world.active[i] || (game.world.motion[i] !== 3 && game.world.motion[i] !== 4)) continue;
         const distanceSq = (game.world.x[i] - game.x) ** 2 + (game.world.z[i] - game.z) ** 2;
-        if (game.world.kinds[i] === ObjectKind.Bird && distanceSq < 20 ** 2) game.down();
-        if (game.world.kinds[i] === ObjectKind.Tumbleweed && distanceSq < 7 ** 2) game.jump();
+        const forward = -(game.world.x[i] - game.x) * Math.sin(game.heading) +
+          (game.world.z[i] - game.z) * Math.cos(game.heading);
+        if (game.world.kinds[i] === ObjectKind.Bird && distanceSq < 20 ** 2 && forward > -0.5) birdNear = true;
+      }
+      if (n % 8 === 0) {
+        if (birdNear) game.down();
+        else for (let i = 0; i < game.world.active.length; i++) {
+          const w = game.world;
+          if (!w.active[i] || w.kinds[i] !== ObjectKind.Tumbleweed || w.motion[i] !== 3) continue;
+          const dx = w.x[i] - game.x, dz = w.z[i] - game.z,
+            vx = (w.x[i] - w.previousX[i]) / STEP + Math.sin(game.heading) * game.speed,
+            vz = (w.z[i] - w.previousZ[i]) / STEP - Math.cos(game.heading) * game.speed,
+            time = -(dx * vx + dz * vz) / (vx * vx + vz * vz);
+          if (time >= 0 && time < 0.4 && Math.hypot(dx + vx * time, dz + vz * time) < 1) game.jump();
+        }
       }
       const delayedZ = game.z - 0.3 * Rules.maxSpeed;
       const slope =
@@ -237,6 +251,7 @@ test("swept lateral collision does not tunnel through a cactus", () => {
 test("jump clears tall cactus, double jump is rejected, landing emits exactly once", () => {
   for (const distance of [0, 2000]) {
     const game = emptyGame(distance);
+    if (distance) { game.distance = 4000; game.speed = game.runSpeed = Rules.maxSpeed; }
     obstacle(game, 0, distance ? 14 : 7, 3.1);
     let landed = 0;
     game.events.on(GameEvent.Land, () => landed++);
@@ -332,7 +347,7 @@ test("lives, damage immunity, game over, pause and reset retain bounded pools", 
   game.step(1);
   assert.equal(game.distance, 0);
 });
-test("hit gives exactly two seconds of immunity and temporary start speed, then restores progress speed", () => {
+test("hit gives exactly two seconds of immunity and temporary start speed, then recovers gradually", () => {
   const game = emptyGame(2000);
   obstacle(game, game.x, 0.3);
   game.step(STEP);
@@ -367,7 +382,7 @@ test("hit gives exactly two seconds of immunity and temporary start speed, then 
   game.world.active.fill(0);
   game.step(STEP);
   assert.equal(game.health.immunity, 0);
-  assert.equal(game.speed, Rules.maxSpeed);
+  assert.ok(game.speed > Rules.startSpeed && game.speed < Rules.startSpeed + 0.1);
   obstacle(game, game.x, 0.3);
   game.step(STEP);
   assert.equal(game.health.lives, 1);
@@ -405,7 +420,7 @@ test("registered pickups flow through the same pool and speed stays within route
   assert.equal(game.wallet.coins, 3);
   game.distance = 1_000_000;
   game.step(STEP);
-  assert.equal(game.speed, Rules.maxSpeed);
+  assert.ok(game.speed > Rules.startSpeed && game.speed < Rules.maxSpeed);
   game.jump();
   assert.equal(game.velocityY, Rules.jumpSpeed);
 });
@@ -443,7 +458,7 @@ test("fixed steps preserve motion at 15/30/60/120Hz", () => {
       }
     }
     results.push(game.distance);
-    assert.ok(game.heading < -2.6 && game.x > 15);
+    assert.ok(Math.abs(game.heading + Rules.turnSpeed * 2) < 1e-10 && game.x > 12);
   }
   assert.ok(results.every((value) => Math.abs(value - results[0]) < 1e-10));
 });

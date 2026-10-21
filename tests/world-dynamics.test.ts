@@ -58,6 +58,25 @@ test("bird launch distance is player-relative and omitted/NaN camera inputs fall
   }
 });
 
+test("bird waits when a rolling obstacle will require a jump on the runner's path", () => {
+  const w = new WorldSpawner(undefined, undefined, new LandscapeField(1979));
+  w.reset(1979); w.update(0, 0);
+  const bird = w.active.findIndex((v, i) => !!v && w.kinds[i] === ObjectKind.Bird),
+    weed = w.active.findIndex((v, i) => !!v && w.kinds[i] === ObjectKind.Tumbleweed);
+  assert.ok(bird >= 0 && weed >= 0);
+  w.active.fill(0); w.active[bird] = w.active[weed] = 1;
+  w.motion[bird] = 0; w.x[bird] = 0; w.z[bird] = 56;
+  const crossing = 0.8, angle = w.angles[weed];
+  w.x[weed] = -Math.sin(angle) * 7.5 * crossing;
+  w.z[weed] = (24 - Math.cos(angle) * 7.5) * crossing;
+  w.step(0, STEP, 0, 0, 0, 24);
+  assert.equal(w.motion[bird], 0, "crouch and jump hazards cannot launch together");
+  assert.equal(w.motion[weed], 3, "rolling does not stop to defer the attack");
+  w.active[weed] = 0;
+  w.step(STEP, STEP, 0, 0, 0, 24);
+  assert.equal(w.motion[bird], 3, "attack resumes once the ground path is clear");
+});
+
 test("rear birds wait; tumbleweed moves 7.5m/s and records its previous collider", () => {
   const rear = moving(ObjectKind.Bird);
   rear.world.x[rear.slot] = 0;
@@ -71,6 +90,42 @@ test("rear birds wait; tumbleweed moves 7.5m/s and records its previous collider
   assert.equal(w.previousX[i], 0);
   assert.equal(w.previousZ[i], 40);
   assert.ok(Math.abs(w.x[i] - 7.5 / 120) < 1e-8);
+});
+
+test("every generated tumbleweed moves from spawn, including behind the runner", () => {
+  let checked = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const field = new LandscapeField(seed), w = new WorldSpawner(undefined, undefined, field);
+    w.reset(seed); w.update(500, -500);
+    const positions = [];
+    for (let i = 0; i < w.active.length; i++)
+      if (w.active[i] && w.kinds[i] === ObjectKind.Tumbleweed && Math.hypot(w.x[i] - 500, w.z[i] + 500) < 80) {
+        assert.equal(w.motion[i], 3); positions.push([i, w.x[i], w.z[i]]);
+      }
+    w.step(30, STEP, 500, -500, Math.PI);
+    for (const [i, x, z] of positions) {
+      assert.equal(w.active[i], 1, "no lifetime retirement while visible");
+      assert.ok(Math.abs(Math.hypot(w.x[i] - x, w.z[i] - z) / STEP - 7.5) < 1e-5);
+      checked++;
+    }
+  }
+  assert.ok(checked > 5);
+});
+
+test("high-speed generation thins new hazards while preserving every pickup and live object", () => {
+  let low = 0, high = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const a = new WorldSpawner(), b = new WorldSpawner();
+    a.reset(seed); b.reset(seed); a.update(400, 400, Rules.startSpeed); b.update(400, 400, Rules.maxSpeed);
+    for (let i = 0; i < a.active.length; i++) {
+      if (a.registry.get(a.kinds[i])?.spawnGroup === "pickup") {
+        assert.equal(a.active[i], b.active[i]);
+      } else { low += +!!a.active[i]; high += +!!b.active[i]; }
+    }
+    const original = a.active.slice(); a.update(400, 400, Rules.maxSpeed);
+    assert.deepEqual(a.active, original, "speed changes never cull live objects");
+  }
+  assert.ok(high / low > 0.6 && high / low < 0.8, `${low} -> ${high}`);
 });
 
 test("committed bird wings clear crouched runners on steep uphill and downhill passes", () => {
@@ -208,7 +263,6 @@ function flatSimulation(kind: ObjectKind) {
   const game = new Simulation(1979);
   // Keep enabled: world dynamics and previous-collider snapshots still execute.
   game.landscape.vertexHeight = () => 0;
-  if (kind === ObjectKind.Bird) game.landscape.ledgeHeightAt = () => 0;
   game.landscape.hazardAt = () => -1;
   game.reset(1979);
   const w = game.world;
@@ -235,7 +289,7 @@ test("simulation: natural birds hit standing runners and timed ducks clear the f
     w.x[i] = w.previousX[i] = Math.sin(angle * Math.PI / 180) * 56;
     w.z[i] = w.previousZ[i] = Math.cos(angle * Math.PI / 180) * 56;
     w.baseY[i] = w.previousBaseY[i] = 1.05;
-    game.distance = 1500; // Real speed calculation reaches its 24m/s cap.
+    game.distance = 4000; game.runSpeed = Rules.maxSpeed;
     game.heading = game.previousHeading = -angle * Math.PI / 180;
     let ducked = false, passed = false;
     for (let tick = 0; tick < 1200; tick++) {
@@ -288,7 +342,7 @@ test("simulation: slower head-on birds give 1.4–2.0 seconds of warning", (t) =
     w.x[i] = w.previousX[i] = 0;
     w.z[i] = w.previousZ[i] = distance;
     w.baseY[i] = w.previousBaseY[i] = 1.05;
-    game.distance = 1500;
+    game.distance = 4000; game.runSpeed = Rules.maxSpeed;
     // Launch at the exact band edge before the runner's first movement tick.
     w.step(0, 0, 0, 0, 0, 24);
     assert.equal(w.motion[i], 3);
@@ -332,7 +386,7 @@ test("bird lock predicts a steady 24m/s runner with a 3m lateral launch offset",
   world.x[slot] = world.previousX[slot] = game.x + 3;
   world.z[slot] = world.previousZ[slot] = game.z + 56;
   world.baseY[slot] = world.previousBaseY[slot] = 1.05;
-  game.distance = 1500;
+  game.distance = 4000; game.runSpeed = Rules.maxSpeed;
   for (let tick = 0; tick < 360 && game.health.lives === 3; tick++) game.step(STEP);
   assert.equal(game.health.lives, 2, "steady standing runner must take the bird hit");
   assert.equal(world.active[slot], 0);
@@ -344,7 +398,7 @@ test("simulation: a late legal turn sidesteps a locked bird without ducking", ()
     w.x[i] = w.previousX[i] = 0;
     w.z[i] = w.previousZ[i] = 56;
     w.baseY[i] = w.previousBaseY[i] = 1.05;
-    game.distance = 1500;
+    game.distance = 4000; game.runSpeed = Rules.maxSpeed;
     let locked = false, lockZ = 0, lockTime = 0;
     for (let tick = 0; tick < 1200; tick++) {
       game.step(STEP);

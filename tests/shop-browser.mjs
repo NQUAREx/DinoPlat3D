@@ -97,7 +97,7 @@ export async function checkShop(context, url, engine) {
     );
     assert.equal(purchased.audio.voices, 8);
     assert.ok(purchased.audio.played > 0);
-    assert.ok(purchased.audio.decodedBytes < 4000000);
+    assert.ok(purchased.audio.decodedBytes < 4 * 1024 * 1024);
     const burst = await page.evaluate(() => {
       for (let i = 0; i < 80; i++) window.__runner.game.events.emit(6, i % 2);
       return window.__runner.audio();

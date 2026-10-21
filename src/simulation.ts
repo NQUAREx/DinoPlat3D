@@ -47,6 +47,7 @@ export class Simulation {
   distance = 0;
   previousDistance = 0;
   speed = Rules.startSpeed;
+  runSpeed = Rules.startSpeed;
   terrainGrade = 0;
   slopeSpeedFactor = 1;
   time = 0;
@@ -85,6 +86,7 @@ export class Simulation {
     this.diving = false;
     this.crouch = this.previousCrouch = this.crouchRemaining = 0;
     this.speed = Rules.startSpeed;
+    this.runSpeed = Rules.startSpeed;
     this.terrainGrade = 0;
     this.slopeSpeedFactor = 1;
     this.nextStep = Rules.stepStride;
@@ -184,48 +186,25 @@ export class Simulation {
       this.velocityY -= Rules.gravity * dt;
     }
     const moveSin = -Math.sin(this.heading), moveCos = Math.cos(this.heading),
-      grade = (this.landscape.smoothHeightAt(this.x + moveSin, this.z + moveCos) -
-        this.landscape.smoothHeightAt(this.x - moveSin, this.z - moveCos)) * 0.5;
-    this.terrainGrade += (grade - this.terrainGrade) * (1 - Math.exp(-dt / 0.22));
-    this.slopeSpeedFactor = this.terrainGrade >= 0
-      ? Math.max(0.5, 1 / (1 + this.terrainGrade * 0.65))
-      : Math.min(1.12, 1 - this.terrainGrade * 0.12);
-    this.speed = (
-      this.health.immunity > 0
-        ? Rules.startSpeed
-        : Math.min(
-            Rules.maxSpeed,
-            Rules.startSpeed + this.distance * Tuning.generation.speedGrowth,
-          )) * this.slopeSpeedFactor;
-    this.distance += this.speed * dt;
+      grade = (this.landscape.heightAt(this.x + moveSin, this.z + moveCos) -
+        this.landscape.heightAt(this.x - moveSin, this.z - moveCos)) * 0.5;
+    this.terrainGrade = grade;
+    this.slopeSpeedFactor = 1 / Math.hypot(1, grade);
+    const progress = Math.min(1, Math.max(0, this.distance * Tuning.generation.speedGrowth /
+      Math.max(0.001, Rules.maxSpeed - Rules.startSpeed))),
+      targetSpeed = Rules.startSpeed + (Rules.maxSpeed - Rules.startSpeed) * progress * progress * (3 - 2 * progress);
+    if (this.health.immunity > 0) this.runSpeed = Rules.startSpeed;
+    else this.runSpeed += (targetSpeed - this.runSpeed) * (1 - Math.exp(-dt / Tuning.generation.accelerationTime));
+    this.speed = this.runSpeed * this.slopeSpeedFactor;
+    this.distance += this.runSpeed * dt;
     const midHeading = (this.heading + this.previousHeading) * 0.5;
     this.x -= Math.sin(midHeading) * this.speed * dt;
     this.z += Math.cos(midHeading) * this.speed * dt;
-    this.world.update(this.x, this.z);
+    this.world.update(this.x, this.z, this.runSpeed);
     const terrain = this.landscape.heightAt(this.x, this.z),
       ground = this.world.walkHeightAt(this.x, this.z, terrain),
       surface = this.landscape.surfaceAt(this.x, this.z);
     const support = surface === Surface.Land || surface === Surface.Bridge;
-    // Only authored rocky ledges block climbing. Ordinary hills, regardless of
-    // elevation, remain traversable. Jumping feet above the ramp clear it.
-    if (support && !this.falling && this.health.immunity <= 0) {
-      const travel = Math.hypot(this.x - this.previousX, this.z - this.previousZ),
-        ledge = this.landscape.ledgeHeightAt(this.x, this.z),
-        oldLedge = ledge > 0.12 ? this.landscape.ledgeHeightAt(this.previousX, this.previousZ) : ledge;
-      if (travel > 1e-9 && ledge > 0.12 && ledge - oldLedge > travel * 0.28 &&
-          (!airborne || feet < ground + 0.06) && this.health.damage()) {
-        // Hold the last supported pose, not the top of a face the player failed
-        // to jump. Ordinary hit-stop/immunity/death listeners remain shared.
-        this.x = this.previousX; this.z = this.previousZ;
-        this.distance = this.previousDistance;
-        this.y = this.previousY; this.groundY = this.previousGroundY;
-        this.speed = Rules.startSpeed;
-        this.groundVelocity = 0;
-        this.hitStopRemaining = Rules.hitStopSeconds;
-        this.move(0);
-        return;
-      }
-    }
     if (!this.falling) this.groundY = ground;
     if (!airborne && support) {
       this.y = 0;
@@ -270,6 +249,7 @@ export class Simulation {
       maxZ = Math.max(this.previousZ, this.z);
     for (let i = 0; i < pool.active.length; i++) {
       if (!pool.active[i]) continue;
+      if (pool.motion[i] === 2 || (pool.motion[i] === 1 && pool.lean[i] >= Math.PI / 2 - 1e-5)) continue;
       if (pool.kinds[i] === ObjectKind.Bird && pool.motion[i] !== 3 && pool.motion[i] !== 4) continue;
       const obstacleX = pool.collisionX(i),
         obstacleZ = pool.collisionZ(i);
@@ -340,6 +320,7 @@ export class Simulation {
         if (this.health.damage()) {
           if (pool.kinds[i] === ObjectKind.Bird) pool.consume(i);
           this.speed = Rules.startSpeed;
+          this.runSpeed = Rules.startSpeed;
           this.groundVelocity = 0;
           // Hold the swept contact pose, not a later penetrated/end-of-step pose.
           this.x = this.previousX + dx * enter;

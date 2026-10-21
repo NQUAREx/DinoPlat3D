@@ -23,7 +23,6 @@ export interface CameraPose {
 }
 export interface HeightSampler {
   heightAt(x: number, z: number): number;
-  smoothHeightAt?(x: number, z: number): number;
 }
 
 /** Event-driven camera extension point; allocations happen only at construction. */
@@ -173,10 +172,8 @@ export class CameraRig {
     // height. Look ahead before climbing, then ease over crests and descents.
     const ahead = Tuning.camera.slopeAhead, behind = Tuning.camera.slopeBehind;
     const grade = terrain
-      ? ((terrain.smoothHeightAt?.(worldX - sin * ahead, worldZ + cos * ahead) ??
-          terrain.heightAt(worldX - sin * ahead, worldZ + cos * ahead)) -
-         (terrain.smoothHeightAt?.(worldX + sin * behind, worldZ - cos * behind) ??
-          terrain.heightAt(worldX + sin * behind, worldZ - cos * behind))) / (ahead + behind)
+      ? (terrain.heightAt(worldX - sin * ahead, worldZ + cos * ahead) -
+         terrain.heightAt(worldX + sin * behind, worldZ - cos * behind)) / (ahead + behind)
       : 0;
     const targetPitch = Math.max(-Tuning.camera.slopeDown, Math.min(Tuning.camera.slopeUp, Math.atan(grade)));
     this.terrainPitch += (targetPitch - this.terrainPitch) * (1 - Math.exp(-Math.max(0, dt) / Tuning.camera.slopeDelay));

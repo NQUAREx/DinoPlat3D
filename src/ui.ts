@@ -24,15 +24,46 @@ export class GameUI {
   best = 0;
   phase: Phase | "loading" | "error" = "loading";
   private shop?: ShopUI;
+  private runFinished = false;
+  private recordTimer?: ReturnType<typeof setTimeout>;
+  private readonly record = this.element("personal-record");
+  private readonly motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  private readonly landscape = window.matchMedia("(orientation: landscape)");
+  private readonly lifecycle = new AbortController();
+  private readonly stopRecord = () => {
+    clearTimeout(this.recordTimer);
+    this.recordTimer = undefined;
+    this.record.classList.remove("record-animate");
+    this.record.hidden = true;
+  };
   constructor() {
     try {
-      this.best = Math.max(
-        0,
-        Number(localStorage.getItem("dinoplat-3d-best")) || 0,
-      );
+      const stored = Number(localStorage.getItem("dinoplat-3d-best"));
+      this.best = Number.isFinite(stored) ? Math.max(0, Math.floor(stored)) : 0;
     } catch {
       /* Storage optional. */
     }
+    const options = { signal: this.lifecycle.signal };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.stopRecord();
+    }, options);
+    window.addEventListener("pagehide", this.stopRecord, options);
+    window.addEventListener("blur", this.stopRecord, options);
+    document.addEventListener("fullscreenchange", this.stopRecord, options);
+    document.addEventListener("webkitfullscreenchange", this.stopRecord, options);
+    this.motion.addEventListener("change", this.stopRecord, options);
+    this.landscape.addEventListener("change", this.stopRecord, options);
+  }
+  private celebrateRecord() {
+    if (document.hidden || this.landscape.matches) return;
+    this.record.hidden = false;
+    if (this.motion.matches) return;
+    this.record.classList.add("record-animate");
+    // One bounded timeout; no animation frames or particles allocated per run.
+    this.recordTimer = setTimeout(() => {
+      this.record.classList.remove("record-animate");
+      this.recordTimer = undefined;
+    }, 1600);
   }
   private element<T extends HTMLElement = HTMLElement>(id: string) {
     return document.getElementById(id) as T;
@@ -58,6 +89,7 @@ export class GameUI {
     );
   }
   selectSection(section: "home" | "shop" | "settings" | "help") {
+    if (section !== "home") this.stopRecord();
     if (this.phase === "paused") {
       this.showPause(
         section === "settings"
@@ -143,6 +175,8 @@ export class GameUI {
   }
   show(game: Simulation) {
     const phase = game.phase;
+    if (phase !== "over") this.stopRecord();
+    if (phase === "running" || phase === "ready") this.runFinished = false;
     this.phase = phase;
     this.app.dataset.phase = phase;
     this.overlay.hidden = phase === "running" || phase === "dying";
@@ -154,11 +188,19 @@ export class GameUI {
     this.element("pause-title").textContent = "ПАУЗА";
     (this.element("resume") as HTMLButtonElement).disabled = false;
     if (phase === "over") {
-      this.best = Math.max(this.best, Math.floor(game.distance));
-      try {
-        localStorage.setItem("dinoplat-3d-best", String(this.best));
-      } catch {
-        /* Optional. */
+      const distance = Number.isFinite(game.distance) ? Math.max(0, Math.floor(game.distance)) : 0;
+      const newRecord = !this.runFinished && distance > this.best;
+      if (!this.runFinished) {
+        this.runFinished = true;
+        if (newRecord) {
+          this.best = distance;
+          try {
+            localStorage.setItem("dinoplat-3d-best", String(this.best));
+          } catch {
+            /* Optional. */
+          }
+          this.celebrateRecord();
+        }
       }
       this.title.textContent = "ГЛАВНОЕ МЕНЮ";
       this.description.textContent = "";
@@ -166,7 +208,7 @@ export class GameUI {
       this.element("final-distance").textContent = this.format(game.distance);
       this.action.textContent = "НАЧАТЬ ЗАБЕГ →";
       this.element("live").textContent =
-        `Конец игры. ${Math.floor(game.distance)} метров.`;
+        `Конец игры. ${distance} метров.${newRecord ? " Новый рекорд." : ""}`;
     } else if (phase === "paused") {
       this.showPause();
     } else if (phase === "ready") {
@@ -182,6 +224,7 @@ export class GameUI {
     this.selectSection(visible ? "settings" : "home");
   }
   error(error: unknown) {
+    this.stopRecord();
     this.selectSection("home");
     this.phase = "error";
     this.app.dataset.phase = "error";
@@ -193,6 +236,7 @@ export class GameUI {
     this.action.textContent = "ЕЩЁ РАЗ";
   }
   graphicsLost() {
+    this.stopRecord();
     this.showPause();
     this.overlay.hidden = false;
     this.action.disabled = true;
@@ -200,6 +244,8 @@ export class GameUI {
     (this.element("resume") as HTMLButtonElement).disabled = true;
   }
   dispose() {
+    this.stopRecord();
+    this.lifecycle.abort();
     this.shop?.dispose();
   }
 }

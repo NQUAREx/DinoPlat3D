@@ -29,7 +29,7 @@ test("three irregular coordinate biomes and nine covers are deterministic on rev
     }
   assert.equal(covers.size, 9);
   assert.ok(counts[0] > counts[1] * 4 && counts[0] > counts[2] * 4);
-  assert.ok(counts[1] > 300 && counts[2] > 300);
+  assert.ok(counts[1] > 100 && counts[2] > 100);
   assert.notEqual(field.heightAt(200, 200), field.heightAt(204, 200));
 });
 test("rivers, lava, pits and bridge crossings exist; safe corridors retain support", () => {

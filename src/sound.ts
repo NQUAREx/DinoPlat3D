@@ -3,7 +3,23 @@ import sprite from "./assets/audio-sprite.json";
 import { Tuning } from "./tuning";
 
 type Cue = keyof typeof sprite;
-type Voice = { gain: GainNode; source?: AudioBufferSourceNode; until: number };
+type Voice = { gain: GainNode; filter: BiquadFilterNode; source?: AudioBufferSourceNode; until: number };
+/** Land: biome * 3 + cover (Desert=0, Lava=1, Meadow=2); Bridge=9. */
+export type SoundSurface = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+const STEP_BANKS = [
+  ["sand0", "sand1", "sand2"],
+  ["stone0", "stone1", "stone2"],
+  ["grass0", "grass1", "grass2"],
+  ["wood0", "wood1", "wood2"],
+] as const;
+// Bank, low-pass Hz, rate, gain: loose sand / packed sand / dry grit;
+// porous rock / warm gravel / dense basalt; grass / damp turf / dry grass; planks.
+const STEP_PROFILES = [
+  [0, 6200, 0.98, 0.30], [0, 2800, 1.04, 0.28], [1, 4800, 1.06, 0.25],
+  [1, 3400, 0.96, 0.30], [1, 6500, 1.04, 0.27], [1, 2000, 0.91, 0.32],
+  [2, 5600, 1, 0.30], [2, 2400, 0.94, 0.32], [2, 7800, 1.06, 0.27],
+  [3, 9000, 1, 0.33],
+] as const;
 /** One decoded local sprite, eight bounded SFX channels and one quiet music loop. */
 export class GameSound {
   enabled = true;
@@ -22,22 +38,24 @@ export class GameSound {
   private running = false;
   private alive = true;
   private sequence = 0;
+  private stepSequence = 0;
+  private surface: SoundSurface = 0;
   private played = 0;
   private lastCue = "";
   private codecOffset = 0;
   private pendingMenu?: Cue;
   private pendingCritical?: "hit" | "death";
-  constructor(events: GameEvents) {
+  constructor(events: GameEvents, private readonly getSurface?: () => number) {
     this.off = [
       events.on(GameEvent.Jump, () => this.play("jump", 0.32, 1)),
       events.on(GameEvent.Land, () => this.play("land", 0.5, 0.95)),
       events.on(GameEvent.Step, () => {
-        const index = this.sequence++ % 3;
-        this.play(
-          index === 0 ? "step0" : index === 1 ? "step1" : "step2",
-          0.22,
-          0.94 + (this.sequence % 5) * 0.035,
-        );
+        if (this.getSurface) this.setSurface(this.getSurface());
+        const n = this.stepSequence++;
+        const [bank, cutoff, rate, gain] = STEP_PROFILES[this.surface];
+        this.play(STEP_BANKS[bank][(n + Math.floor(n / 3)) % 3],
+          gain * (0.96 + (n % 3) * 0.04),
+          rate * (0.98 + ((n * 3) % 5) * 0.01), 0, cutoff);
       }),
       events.on(GameEvent.Hit, () => this.play("hit", 1, 0.85)),
       events.on(GameEvent.Death, () => {
@@ -60,6 +78,11 @@ export class GameSound {
       events.on(GameEvent.Duck, () => this.play("duck", 0.28, 1.05)),
       events.on(GameEvent.Dive, () => this.play("duck", 0.35, 0.8)),
     ];
+  }
+  /** Set before emitting Step. Invalid/unsupported surfaces fall back to sand. */
+  setSurface(surface: number) {
+    this.surface = Number.isInteger(surface) && surface >= 0 && surface <= 9
+      ? surface as SoundSurface : 0;
   }
   preload() {
     if (this.bytes) return;
@@ -101,8 +124,12 @@ export class GameSound {
         this.musicGain.connect(this.limiter);
         for (let i = 0; i < 8; i++) {
           const gain = this.context.createGain();
+          const filter = this.context.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.Q.value = 0.5;
+          filter.connect(gain);
           gain.connect(this.limiter);
-          this.voices.push({ gain, until: 0 });
+          this.voices.push({ gain, filter, until: 0 });
         }
       }
       this.master!.gain.setValueAtTime(
@@ -128,6 +155,8 @@ export class GameSound {
     try {
       const buffer = await this.context.decodeAudioData(bytes);
       if (!this.alive) return;
+      if (buffer.numberOfChannels !== 1 || buffer.length * 4 >= 4 * 1024 * 1024)
+        return;
       this.buffer = buffer;
       // One short scan on decode, never in RAF. The marker itself is never
       // submitted to audio; it aligns short sprite cues across browser codecs.
@@ -155,7 +184,7 @@ export class GameSound {
     if (!this.buffer) this.pendingMenu = sound;
     this.play(sound, 0.35, 1);
   }
-  private play(cue: Cue, volume: number, rate: number, delay = 0) {
+  private play(cue: Cue, volume: number, rate: number, delay = 0, cutoff = 20000) {
     const context = this.context;
     if (
       this.enabled &&
@@ -201,7 +230,8 @@ export class GameSound {
       clip = sprite[cue];
     source.buffer = this.buffer;
     source.playbackRate.value = rate;
-    source.connect(voice.gain);
+    voice.filter.frequency.setValueAtTime(cutoff, now);
+    source.connect(voice.filter);
     voice.gain.gain.setValueAtTime(volume * Tuning.audio.effects, now);
     voice.source = source;
     voice.until = now + delay + clip.duration / rate;
@@ -343,7 +373,10 @@ export class GameSound {
     this.loading?.abort();
     for (const off of this.off) off();
     this.stop();
-    for (const voice of this.voices) voice.gain.disconnect();
+    for (const voice of this.voices) {
+      voice.filter.disconnect();
+      voice.gain.disconnect();
+    }
     this.musicGain?.disconnect();
     this.limiter?.disconnect();
     this.master?.disconnect();

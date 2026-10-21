@@ -11,7 +11,7 @@ test("one-query cache reuses geometry across modes and observes seed, enable and
   }
   const field = new CountedField(23), x = -1000000.13, z = 1000000.37;
   field.heightAt(x, z); const located = field.gridCalls;
-  field.surfaceAt(x, z); field.hazardKindAt(x, z); field.supportAt(x, z); field.ledgeHeightAt(x, z);
+  field.surfaceAt(x, z); field.hazardKindAt(x, z); field.supportAt(x, z);
   assert.equal(field.gridCalls, located);
   field.seed = 1979;
   assert.equal(field.heightAt(x, z), new LandscapeField(1979).heightAt(x, z));
@@ -42,17 +42,21 @@ test("one-query cache reuses geometry across modes and observes seed, enable and
   assert.ok(field.gridCalls < 400000, "bounded central-first geometry work across 60,000 API calls");
 });
 
-test("high mountain cores own deterministic non-desert biomes", () => {
-  const field = new LandscapeField(1979); const seen = new Set<Biome>(); let cores = 0;
+test("thinned mountain cores retain scaled peaks and deterministic summit islands", () => {
+  const field = new LandscapeField(1979); const seen = new Set<Biome>(); let cores = 0, mountains = 0;
   for (let iz = -8; iz <= 8; iz++) for (let ix = -8; ix <= 8; ix++) {
-    if (field.hash(ix, iz, 114) >= 0.64) continue;
+    if (field.hash(ix, iz, 114) >= 0.32) continue;
+    mountains++;
     const x = (ix + 0.35 + 0.3 * field.hash(ix, iz, 115)) * 320;
     const z = (iz + 0.35 + 0.3 * field.hash(ix, iz, 116)) * 320;
-    assert.ok(field.vertexHeight(x, z) > 120);
+    assert.ok(field.vertexHeight(x, z) > 40);
+    if (field.hash(ix, iz, 118) >= 1 / 3) continue;
     const biome = field.biomeAt(x, z); assert.notEqual(biome, Biome.Desert);
     assert.equal(field.biomeAt(x + 20, z), biome); seen.add(biome); cores++;
   }
-  assert.ok(cores > 50); assert.equal(seen.size, 2);
+  assert.ok(cores > 20 && cores < 45); assert.equal(seen.size, 2);
+  assert.ok(mountains / 289 > 0.27 && mountains / 289 < 0.37, "about one-third of macro cells contain tall mountains");
+  assert.ok(cores / mountains > 0.25 && cores / mountains < 0.42, "about one-third of mountain cores receive summit islands");
 });
 
 test("seed-rotated bridge curves cover all heading sectors with matching tangents and support", () => {
@@ -128,7 +132,7 @@ test("bridge plank coordinates do not tear between adjacent faces at million-met
   }
 });
 
-test("desert-majority field distribution, increased relief, startup and stable resets", (t) => {
+test("desert-majority field distribution, scaled relief, startup and stable resets", (t) => {
   const field = new LandscapeField(), counts = [0, 0, 0];
   let n = 0, low = 0, high = 0, maximum = -Infinity, minimum = Infinity, maxSlope = 0;
   for (const seed of [1, 23, 1979, 98541]) {
@@ -140,7 +144,7 @@ test("desert-majority field distribution, increased relief, startup and stable r
       if (Math.abs(h) < 3) low++;
       if (h > 25) high++;
       maxSlope = Math.max(maxSlope, Math.abs(field.heightAt(x + 1, z) - field.heightAt(x, z)));
-      assert.ok(h >= -16.6 && h <= 130);
+      assert.ok(h >= -16.6 && h <= 42);
     }
     for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
       assert.equal(field.heightAt(18 * Math.cos(angle), 18 * Math.sin(angle)), 0);
@@ -149,10 +153,10 @@ test("desert-majority field distribution, increased relief, startup and stable r
   }
   const fractions = counts.map(c => c / n);
   t.diagnostic(`biomes ${fractions.map(f => (f * 100).toFixed(2)).join("/")}%; low relief ${(100 * low / n).toFixed(2)}%; heights ${minimum.toFixed(2)}..${maximum.toFixed(2)}m; slope ${maxSlope.toFixed(3)}`);
-  assert.ok(fractions[Biome.Desert] >= 0.75 && fractions[Biome.Desert] <= 0.85);
-  for (const biome of [Biome.Lava, Biome.Meadow]) assert.ok(fractions[biome] >= 0.08 && fractions[biome] <= 0.15);
-  assert.ok(low / n > 0.65 && low / n < 0.85 && high / n < 0.16 && maximum > 95 && minimum < -10);
-  assert.ok(maxSlope > 1.5 && maxSlope < 4);
+  assert.ok(fractions[Biome.Desert] >= 0.91 && fractions[Biome.Desert] <= 0.95);
+  for (const biome of [Biome.Lava, Biome.Meadow]) assert.ok(fractions[biome] >= 0.02 && fractions[biome] <= 0.05);
+  assert.ok(low / n > 0.85 && low / n < 0.95 && high / n > 0.005 && high / n < 0.025 && maximum > 40 && minimum < -10);
+  assert.ok(maxSlope > 0.6 && maxSlope < 1.5);
   field.reset(23); const h = field.heightAt(-1000000.1, 1000000.3);
   field.reset(1); field.reset(23); assert.equal(field.heightAt(-1000000.1, 1000000.3), h);
 });
@@ -184,9 +188,11 @@ test("curved routes stay supported and bridge samples preserve underlying bed", 
 
 test("lava contours vary in shape and linear diameter within the old-to-sixfold cap", (t) => {
   const field = new LandscapeField(1979), base = Tuning.landscape.biomeSize * 0.085;
-  let smallest = Infinity, largest = 0, irregular = 0;
+  let smallest = Infinity, largest = 0, irregular = 0, candidates = 0, enabled = 0;
   for (let gz = -20; gz <= 20; gz++) for (let gx = -20; gx <= 20; gx++) {
     if (field.hash(gx, gz, 9) >= 0.5) continue;
+    candidates++;
+    enabled += +(field.hash(gx, gz, 205) < 1 / 3);
     const px = (gx + 0.15 + 0.7 * field.hash(gx, gz, 2)) * Tuning.landscape.biomeSize;
     const pz = (gz + 0.15 + 0.7 * field.hash(gx, gz, 3)) * Tuning.landscape.biomeSize;
     let min = Infinity, max = 0;
@@ -204,6 +210,7 @@ test("lava contours vary in shape and linear diameter within the old-to-sixfold 
   }
   t.diagnostic(`lava maximum radial scales ${smallest.toFixed(2)}..${largest.toFixed(2)}; ${irregular} strongly irregular patches`);
   assert.ok(smallest < 1.4 && largest > 5 && irregular > 50);
+  assert.ok(enabled / candidates > 0.28 && enabled / candidates < 0.38, "about one-third of deterministic lava candidates remain enabled");
 });
 
 test("second ravine family doubles generated footprints rather than widening old pits", (t) => {
@@ -285,83 +292,13 @@ test("raw pit kind has no negative-mask band beside a river", () => {
   assert.equal(field.supportAt(100, 100), false);
 });
 
-test("hill distribution substantially exceeds the exact old macro baseline", (t) => {
-  const field = new LandscapeField(1979);
-  const smooth = (v: number) => v * v * (3 - 2 * v);
-  let oldHigh = 0, newHigh = 0, oldMedium = 0, newMedium = 0, n = 0;
-  for (let z = -4000; z < 4000; z += 53) for (let x = -4000; x < 4000; x += 47) {
-    let h = 0;
-    const ix = Math.floor(x / 640), iz = Math.floor(z / 640);
-    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-      const gx = ix + dx, gz = iz + dz, kind = field.hash(gx, gz, 114);
-      if (kind > 0.48) continue;
-      const px = (gx + 0.35 + 0.3 * field.hash(gx, gz, 115)) * 640;
-      const pz = (gz + 0.35 + 0.3 * field.hash(gx, gz, 116)) * 640;
-      h += (kind < 0.32 ? 126 : -15) * smooth(Math.max(0, 1 - Math.hypot(x - px, z - pz) / (kind < 0.32 ? 190 : 100)));
-    }
-    h += (field.noise(x, z, 100, 111) - 0.5) * 3 + (field.noise(x, z, 37, 112) - 0.5) * 0.2;
-    h = smooth(Math.min(1, Math.max(0, (Math.hypot(x, z) - 24) / 96))) * Math.max(-16.6, Math.min(130, h));
-    const next = field.vertexHeight(x, z);
-    oldHigh += +(h > 25); newHigh += +(next > 25);
-    oldMedium += +(h > 3 && h <= 25); newMedium += +(next > 3 && next <= 25); n++;
-  }
-  t.diagnostic(`high relief ${(100 * oldHigh / n).toFixed(2)}% -> ${(100 * newHigh / n).toFixed(2)}%; medium ${(100 * oldMedium / n).toFixed(2)}% -> ${(100 * newMedium / n).toFixed(2)}%`);
-  assert.ok(newHigh > oldHigh * 1.7 && newMedium > oldMedium * 2);
+test("early seeded foothills retain visible relief at one-third height", () => {
+  const field = new LandscapeField();
   for (let seed = 1; seed <= 100; seed++) {
     field.reset(seed); let peak = 0;
     for (let z = 60; z <= 150; z += 10) for (let x = -70; x <= 70; x += 10) peak = Math.max(peak, field.heightAt(x, z));
-    assert.ok(peak > 12, `visible early foothill for seed ${seed}: ${peak}`);
+    assert.ok(peak > 4 && peak <= 42, `visible early foothill for seed ${seed}: ${peak}`);
   }
-});
-
-test("ledge component follows the same triangles, has jumpable steep faces and guarded routes", (t) => {
-  const field = new LandscapeField(1979);
-  // Inspect raw vertex contribution only in the test; no new production API/storage.
-  const raw = (x: number, z: number) => (field as unknown as { vertexCliffRise(x: number, z: number): number }).vertexCliffRise(x, z);
-  let steep = 0, raised = 0, maximum = 0;
-  for (let z = -500; z <= 500; z += 2.3) for (let x = -500; x <= 500; x += 2.7) {
-    const h = field.ledgeHeightAt(x, z);
-    assert.ok(h >= -1e-10 && h <= 3.6 + 1e-10);
-    maximum = Math.max(maximum, h); raised += +(h > 0.5);
-    if (Math.abs(field.ledgeHeightAt(x + 0.1, z) - h) / 0.1 > 0.28) steep++;
-  }
-  for (const origin of [-250000, 0, 250000]) for (let i = -20; i <= 20; i++) {
-    const ix = origin + i, iz = -origin + i * 7;
-    const ax = field.gridX(ix, iz), az = field.gridZ(ix, iz);
-    const bx = field.gridX(ix + 1, iz), bz = field.gridZ(ix + 1, iz);
-    const cx = field.gridX(ix, iz + 1), cz = field.gridZ(ix, iz + 1);
-    assert.ok(Math.abs(field.ledgeHeightAt(ax * 0.2 + bx * 0.3 + cx * 0.5, az * 0.2 + bz * 0.3 + cz * 0.5) - (raw(ax, az) * 0.2 + raw(bx, bz) * 0.3 + raw(cx, cz) * 0.5)) < 1e-7);
-  }
-  for (let seed = 1; seed <= 100; seed++) {
-    field.reset(seed);
-    for (let z = -400; z <= 400; z += 7.1) for (const corridor of [-3, 0, 3]) for (const offset of [-2.8, 0, 2.8]) {
-      assert.ok(field.ledgeHeightAt(field.routeX(z, corridor) + offset, z) < 1e-10);
-    }
-  }
-  t.diagnostic(`${raised} raised samples; ${steep} faces above .28 slope; maximum ${maximum.toFixed(3)}m`);
-  assert.ok(raised > 1000 && steep > 100 && maximum > 2.8);
-});
-
-test("large rectangle and diamond rock steps produce distinct polygonal footprints", () => {
-  class ShapedField extends LandscapeField {
-    shape = 0;
-    override hash(x: number, z: number, salt = 0) {
-      return salt === 228 ? this.shape : super.hash(x, z, salt);
-    }
-  }
-  const field = new ShapedField(1979), area = [0, 0], shapes = [0.1, 0.9];
-  let distinct = 0;
-  for (let z = -240; z <= 240; z += 2.3) for (let x = -240; x <= 240; x += 2.7) {
-    const heights = shapes.map((shape, i) => {
-      field.shape = shape;
-      const h = field.ledgeHeightAt(x, z);
-      area[i] += +(h > 0.5);
-      return h;
-    });
-    if (Math.abs(heights[0] - heights[1]) > 0.4) distinct++;
-  }
-  assert.ok(area[0] > area[1], "rectangle encloses more ground than diamond");
-  assert.ok(distinct > 100, "shape selection measurably changes the actual interpolated surface");
 });
 
 test("new feature queries retain fixed storage, deterministic revisits and continuous cell seams", () => {
@@ -370,9 +307,8 @@ test("new feature queries retain fixed storage, deterministic revisits and conti
   assert.equal(buffers.length, 1); assert.equal(buffers[0].byteLength, 64);
   for (let i = 0; i < 5000; i++) {
     const x = -1000000 + i * 403.17, z = 1000000 - i * 389.31;
-    const height = field.heightAt(x, z), ledge = field.ledgeHeightAt(x, z);
+    const height = field.heightAt(x, z);
     assert.equal(height, new LandscapeField(23).heightAt(x, z));
-    assert.equal(ledge, new LandscapeField(23).ledgeHeightAt(x, z));
     for (const period of [48, 96, 320]) {
       const edge = Math.round(x / period) * period;
       assert.ok(Math.abs(field.vertexHeight(edge - 1e-6, z) - field.vertexHeight(edge + 1e-6, z)) < 0.0001);
@@ -380,5 +316,5 @@ test("new feature queries retain fixed storage, deterministic revisits and conti
   }
   assert.deepEqual(Object.keys(field), keys);
   assert.deepEqual(Object.values(field).filter(v => ArrayBuffer.isView(v)), buffers);
-  field.enabled = false; assert.equal(field.ledgeHeightAt(100, 100), 0);
+  field.enabled = false; assert.equal(field.heightAt(100, 100), 0);
 });
