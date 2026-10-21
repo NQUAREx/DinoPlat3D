@@ -11,6 +11,7 @@
 - A new record compares whole metres with the previous best before saving and celebrates once after Game Over. Finite trophy/confetti animation, ties, reduced motion, lifecycle cleanup and Play-button visibility pass the isolated Chromium browser test. No new runtime dependency, shader, texture or animation RAF was added.
 - Production TypeScript/Vite build, focused unit checks, isolated record-effect browser coverage and complete Chromium/WebKit mobile profiles pass. The profiles include native controls, slope camera, terrain/pits, GPU instance uploads, DEV/shop/audio/pause and30 warmed resets, with no JS/WebGL errors. Remaining route seeds79–100 also pass after updating the pilot to stop ducking for already-passed birds; the full100-seed gate still runs in CI. Physical-phone FPS is unmeasured.
 - GitHub reports the canonical repository/Page path as `DinoPlat3D` on2026-10-21. The old lowercase-final-d Pages URL returns404; the capital-D URL returns200. README now links the actual page; relative Vite asset paths already support it.
+- The first final CI run passed the complete100-seed route and142/143 checks; its sole failure was missing `ffprobe` on the runner. The workflow now installs FFmpeg/ffprobe explicitly for real MP3 decode/audibility/budget verification. These are CI/development tools, not game dependencies. The full gate is rerun without weakening audio or route assertions.
 
 ## Current terrain readability and movement update
 
