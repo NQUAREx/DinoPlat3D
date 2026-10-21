@@ -1,6 +1,6 @@
 # Backend operations
 
-Backend deployed through the Supabase plugin on 2026-10-21. The three migration filenames match remote history; `game-api` is active with `verify_jwt=false` and explicit device/admin authorization. Runtime uses Supabase-injected `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. No npm runtime dependencies. See docs/SUPABASE.md for verified provisioning and schedules.
+Backend deployed through the Supabase plugin on 2026-10-21. The four migration filenames match remote history; `game-api` is active with `verify_jwt=false` and explicit device/admin authorization. Privileged Vault helpers live in non-exposed game_private; public wrappers are service-only invokers. Runtime uses Supabase-injected `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. No npm runtime dependencies. See docs/SUPABASE.md for verified provisioning and schedules.
 
 Set `ALLOWED_ORIGINS` to exact production/development origins. Set `TRUSTED_IP_HEADER` only to an IP header your gateway overwrites; without a trusted IP source there is no effective cross-device signup throttle (device throttling remains). Provision infrastructure ingress limits to mitigate token rotation abuse. Never expose service keys, Telegram credentials, worker secrets, token hashes or Vault responses to the client.
 

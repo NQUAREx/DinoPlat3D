@@ -102,6 +102,8 @@ test('PostgreSQL integration: identity, ownership, exactly-once earnings, rankin
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key);`);
   const migration = readdirSync(new URL('../supabase/migrations/', import.meta.url)).find(x => x.endsWith('_game_backend.sql'))!;
   await db.exec(readFileSync(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
+  const vaultMigration = readdirSync(new URL('../supabase/migrations/', import.meta.url)).find(x => x.endsWith('_private_vault_helpers.sql'))!;
+  await db.exec(readFileSync(new URL(`../supabase/migrations/${vaultMigration}`, import.meta.url), 'utf8'));
   let counter = 1;
   const id = () => `22222222-2222-4222-8222-${String(counter++).padStart(12, '0')}`;
   const call = async (hash: string, action: string, input: Record<string, unknown> = {}) => (await db.query('select public.game_action($1,$2,$3::jsonb) as result', [hash, action, JSON.stringify({ action, ...input })])).rows[0].result;
@@ -143,6 +145,8 @@ test('PostgreSQL integration: identity, ownership, exactly-once earnings, rankin
     assert.ok((await db.query('select * from public.game_admin_retention')).rows.length);
     const tables = await db.query("select relname,relrowsecurity,relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','game_private') and c.relkind='r'");
     assert.ok(tables.rows.every((x: any) => x.relrowsecurity && x.relforcerowsecurity));
+    const exposedDefiners = await db.query("select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'game_%' and p.prosecdef");
+    assert.equal(exposedDefiners.rows.length, 0);
     for (const role of ['anon', 'authenticated']) {
       await db.exec(`set role ${role}`);
       await assert.rejects(db.query('select * from public.game_profiles'), /permission denied/);

@@ -3,7 +3,7 @@
 Project: `yusnxxdeumczuniwumvi`, API host `https://yusnxxdeumczuniwumvi.supabase.co`.
 The static GitHub Pages game uses the Edge Function, not direct table writes.
 The authoritative wire contract is [supabase/API.md](../supabase/API.md).
-Deployment verified 2026-10-21: all three migrations were applied through the Supabase plugin, and Edge Function
+Deployment verified 2026-10-21: all four migrations were applied through the Supabase plugin, and Edge Function
 `game-api` version 4 is active. The confirmed project Auth administrator
 `nquare.x@gmail.com` exists and its UUID is in `public.game_admins`. Live admin
 login and summary retrieval passed. The initial password is stored in Vault as
@@ -19,8 +19,11 @@ one sent message and an acknowledged outbox row. No relay hosting is available; 
 relay is not deployed. The browser mock suite does not independently establish
 these live deployment facts.
 The applied migrations are `20261021074943_game_backend.sql`,
-`20261021074959_operational_schedules.sql` and `20261021075440_analytics_summary.sql`.
+`20261021074959_operational_schedules.sql`, `20261021075440_analytics_summary.sql`
+and `20261021120646_private_vault_helpers.sql`.
 Local filenames match the remote MCP migration history.
+Privileged Vault helpers live in the non-exposed `game_private` schema; their
+public RPC wrappers are security invokers executable only by the service role.
 
 ## Deploy backend and client
 
