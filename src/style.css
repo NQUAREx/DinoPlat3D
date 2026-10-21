@@ -1099,12 +1099,11 @@ input[data-native-input] {
   display: none;
 }
 
-/* Online UI stays inside the existing portrait shell; only its list scrolls. */
-.menu-nav { gap: 0; padding-top: 0; overflow-y: auto; scrollbar-width: none; }
-.menu-tab { min-height: 48px; flex-basis: 48px; padding: 7px; }
+/* Online tabs retain the original roomy square-tab treatment. */
+.menu-nav { overflow-y: auto; scrollbar-width: none; }
 #admin-toggle { font-size: 8px; }
-.online-profile { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-width: 0; }
-#profile-nickname { font-size: 9px; line-height: 1.8; overflow-wrap: anywhere; }
+.online-profile { position: absolute; z-index: 2; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 5px; width: max-content; max-width: calc(100% - 16px); min-width: 0; padding: 4px 7px; border: 2px solid #24374d88; background: #fff2c3b8; color: var(--ink); }
+#profile-nickname { font-size: 8px; line-height: 1.8; overflow-wrap: anywhere; text-shadow: 0 1px #fff8; }
 .online-status, .online-note { font-size: 6px; line-height: 2; overflow-wrap: anywhere; margin: 5px 0; }
 .online-status { color: #885523; }
 .online-note { color: #74603b; }
@@ -1112,7 +1111,9 @@ input[data-native-input] {
 .online-small { min-height: 48px; border: 2px solid var(--ink); border-radius: 0; padding: 7px 5px; background: #ffe588; color: var(--ink); font: inherit; font-size: 6px; line-height: 1.8; }
 .online-small[aria-pressed="true"] { background: #7be344; box-shadow: inset 2px 2px #c2ff7c; }
 .online-small:disabled, .online-form button:disabled { opacity: .6; }
-#profile-rename { flex-shrink: 0; }
+#profile-rename { display: grid; place-items: center; flex: 0 0 22px; width: 22px; min-height: 22px; height: 22px; padding: 3px; border-width: 1px; }
+#profile-rename[hidden] { display: none; }
+#profile-rename svg { width: 13px; height: 13px; fill: currentColor; }
 .menu-content .online-panel { display: flex; flex-direction: column; gap: 8px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; text-align: left; }
 .online-panel h2, #nickname-title { font-size: 10px; line-height: 1.9; font-weight: 400; margin: 0 0 5px; overflow-wrap: anywhere; }
 .online-tabs { display: flex; gap: 4px; flex-shrink: 0; }
@@ -1138,5 +1139,4 @@ input[data-native-input] {
 #app[data-menu="leaderboard"] #overlay, #app[data-menu="admin"] #overlay { background: transparent; }
 @media (max-height: 700px) {
   #profile-nickname { font-size: 7px; }
-  .online-profile { gap: 4px; }
 }

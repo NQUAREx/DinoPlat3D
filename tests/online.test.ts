@@ -29,8 +29,9 @@ function fixture() {
   } };
 }
 
-test("online: Unicode nickname validation rejects markup and invalid lengths", () => {
+test("online: Unicode nicknames allow spaces and reject markup and invalid lengths", () => {
   assert.equal(validateNickname("  Дино_123  "), "Дино_123");
+  assert.equal(validateNickname("Dino Plat 3D"), "Dino Plat 3D");
   assert.throws(() => validateNickname("<img>"));
   assert.throws(() => validateNickname("ab"));
   assert.throws(() => validateNickname("a".repeat(21)));

@@ -43,8 +43,8 @@ function profileOf(value: unknown): OnlineProfile | null {
 }
 export function validateNickname(value: string): string {
   const nickname = value.normalize("NFKC").trim();
-  if (!/^[\p{L}\p{N}_-]{3,20}$/u.test(nickname))
-    throw new OnlineError("Ник: 3–20 букв, цифр, _ или -.", 400);
+  if (!/^[\p{L}\p{N}_ -]{3,20}$/u.test(nickname))
+    throw new OnlineError("Ник: 3–20 букв, цифр, пробелов, _ или -.", 400);
   return nickname;
 }
 export interface OnlineOptions { endpoint?: string; publishableKey?: string; timeoutMs?: number; supabaseUrl?: string }

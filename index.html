@@ -123,9 +123,9 @@
             <section id="menu-panel" class="panel" aria-labelledby="title">
               <div id="chapter" class="chapter"></div>
               <h1 id="title">ГЛАВНОЕ МЕНЮ</h1>
-              <div class="online-profile"><span id="profile-nickname">ВЫБЕРИТЕ НИК</span><button id="profile-rename" class="online-small" type="button" aria-label="Сменить ник" hidden>НИК</button></div>
               <p id="online-status" class="online-status" role="status"></p>
               <div class="hero-preview">
+                <div class="online-profile"><span id="profile-nickname"></span><button id="profile-rename" class="online-small" type="button" aria-label="Сменить ник" title="Сменить ник" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17.25 11.06-11.06 3.75 3.75L6.75 21H3v-3.75ZM16.18 4.07l1.41-1.41a2 2 0 0 1 2.83 0l.92.92a2 2 0 0 1 0 2.83l-1.41 1.41-3.75-3.75Z"/></svg></button></div>
                 <div
                   id="menu-avatar"
                   role="img"
@@ -285,9 +285,7 @@
       <section id="nickname-gate" role="dialog" aria-modal="true" aria-labelledby="nickname-title" hidden>
         <div class="panel online-form">
           <h2 id="nickname-title">ВЫБЕРИТЕ НИК</h2>
-          <p class="online-status">Ник и рекорды публичны. Сохраняем активность игры; о новых игроках и рекордах сообщаем администратору в Telegram. Не указывайте личные данные.</p>
-          <label for="nickname-input">ИМЯ ИГРОКА</label>
-          <input id="nickname-input" data-native-input type="text" autocomplete="nickname" autocapitalize="off" spellcheck="false" minlength="3" maxlength="20" enterkeyhint="done" aria-describedby="nickname-message" />
+          <input id="nickname-input" data-native-input type="text" autocomplete="nickname" autocapitalize="off" spellcheck="false" minlength="3" maxlength="20" enterkeyhint="done" aria-label="Никнейм" aria-describedby="nickname-message" />
           <p id="nickname-message" class="online-status" role="status" aria-live="polite"></p>
           <button id="nickname-save" class="pixel-button" type="button">СОХРАНИТЬ</button>
           <button id="nickname-cancel" class="online-small" type="button" hidden>ОТМЕНА</button>

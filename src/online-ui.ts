@@ -85,7 +85,7 @@ export class OnlineUI {
   }
   private renderProfile() {
     if (this.disposed) return;
-    element("profile-nickname").textContent = this.service.profile?.nickname || "ВЫБЕРИТЕ НИК";
+    element("profile-nickname").textContent = this.service.profile?.nickname || "";
     element("online-status").textContent = this.service.online ? "В СЕТИ" :
       this.canPlay ? `ОФЛАЙН${this.service.pendingRuns ? ` · ОЖИДАЮТ: ${this.service.pendingRuns}` : ""}` : "НУЖНА РЕГИСТРАЦИЯ";
     element("profile-rename").hidden = !this.canPlay;
@@ -98,7 +98,7 @@ export class OnlineUI {
     const gate = element("nickname-gate");
     element("nickname-title").textContent = rename ? "СМЕНИТЬ НИК" : "ВЫБЕРИТЕ НИК";
     element("nickname-cancel").hidden = !this.canPlay;
-    element("nickname-message").textContent = "Уникальное имя · 3–20 букв, цифр, _ или -. Для подтверждения нужен интернет.";
+    element("nickname-message").textContent = "";
     element<HTMLInputElement>("nickname-input").value = this.service.profile?.nickname || "";
     gate.hidden = false;
     // Block underlying menus even when opened programmatically by shell/help.

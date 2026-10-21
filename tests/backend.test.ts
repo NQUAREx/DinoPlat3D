@@ -16,6 +16,7 @@ test('validation rejects malformed IDs, impossible shapes, nonfinite metrics', (
   assert.throws(() => validate({ action: 'leaderboard', metric: 'wallet', period: 'all' }));
   assert.throws(() => validate({ action: 'profile-rename', request_id: requestId, nickname: '<script>' }));
   const input = { action: 'profile', nickname: ' Ａbc ' }; validate(input); assert.equal(input.nickname, 'Abc');
+  const spaced = { action: 'profile-rename', request_id: requestId, nickname: 'Dino Run' }; validate(spaced); assert.equal(spaced.nickname, 'Dino Run');
 });
 
 test('hashes are SHA256; raw device bearer never reaches REST', async () => {

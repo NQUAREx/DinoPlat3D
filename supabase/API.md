@@ -7,7 +7,7 @@ All success responses: `{ok:true,data:...}`; errors `{ok:false,error:{code,messa
 
 | action | additional fields | data |
 |---|---|---|
-| profile | nickname (required for first registration; 3–20 Unicode letters/numbers/underscore/hyphen, NFKC normalized, case-insensitive uniqueness) | `{id,nickname,best_score,earned_coins,created_at}` |
+| profile | nickname (required for first registration; 3–20 Unicode letters/numbers/spaces/underscore/hyphen, NFKC normalized and trimmed, case-insensitive uniqueness) | `{id,nickname,best_score,earned_coins,created_at}` |
 | profile-rename | nickname, request_id | profile as above |
 | visit | request_id | `{session_id,started_at,active_seconds:0}` |
 | heartbeat | request_id, session_id, active_seconds (integer cumulative foreground seconds since visit, never a delta) | `{session_id,active_seconds}` |

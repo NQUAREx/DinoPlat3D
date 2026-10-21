@@ -43,7 +43,7 @@ async function harness(run) {
       if (body.action === 'profile') {
         if (profile) return send(profile);
         if (!body.nickname) return fail(401, 'unknown_device');
-        if (!/^[\p{L}\p{N}_-]{3,20}$/u.test(body.nickname)) return fail(400, 'invalid_nickname');
+        if (!/^[\p{L}\p{N}_ -]{3,20}$/u.test(body.nickname)) return fail(400, 'invalid_nickname');
         if ([...profiles.values()].some(p => p.nickname.toLowerCase() === body.nickname.toLowerCase())) return fail(409, 'nickname_taken');
         const result = { id: crypto.randomUUID(), nickname: body.nickname, best_score: 0, earned_coins: 0, created_at: new Date().toISOString() };
         profiles.set(token, result); return send(result);
@@ -97,7 +97,7 @@ async function harness(run) {
     assert.deepEqual(violations, [], 'client requests must match supabase/API.md');
   } finally { await browser?.close(); await server.close(); }
 }
-async function register(page, nickname = 'Runner_123') {
+async function register(page, nickname = 'Runner Run 123') {
   await page.locator('#nickname-input').fill(nickname);
   await page.locator('#nickname-save').tap();
   await page.waitForFunction(() => window.service.canPlay);
@@ -108,13 +108,22 @@ test('mandatory nickname: gate, native focus, validation and successful registra
   assert.equal(await page.locator('#nickname-gate').isVisible(), true);
   assert.equal(await page.locator('#nickname-cancel').isVisible(), false);
   assert.equal(await page.locator('#nickname-input').getAttribute('data-native-input') !== null, true);
+  assert.equal(await page.locator('#nickname-input').getAttribute('placeholder'), null);
+  assert.equal(await page.locator('label[for="nickname-input"]').count(), 0);
+  assert.equal(await page.locator('#nickname-message').textContent(), '');
+  assert.equal(await page.locator('#profile-nickname').evaluate(node => node.parentElement.parentElement.classList.contains('hero-preview')), true);
+  assert.equal(await page.locator('#profile-rename svg').count(), 1);
+  assert.deepEqual(await page.locator('.menu-nav').evaluate(node => {
+    const tab = getComputedStyle(document.querySelector('.menu-tab'));
+    return { gap: getComputedStyle(node).rowGap, tabWidth: tab.width, tabHeight: tab.height };
+  }), { gap: '12px', tabWidth: '58px', tabHeight: '58px' });
   assert.equal(await page.evaluate(() => document.activeElement.id), 'nickname-input');
   // Actual touch activation and input selection must survive the global shell.
   await page.locator('#nickname-input').evaluate(input => input.blur());
   await page.locator('#nickname-input').tap();
   assert.equal(await page.evaluate(() => document.activeElement.id), 'nickname-input');
   assert.equal(await page.evaluate(() => document.body.dataset.editing), 'true');
-  await page.keyboard.insertText('Runner_123');
+  await page.keyboard.insertText('Runner Run 123');
   const native = await page.locator('#nickname-input').evaluate(input => {
     input.setSelectionRange(0, 6);
     const pointer = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'touch' });
@@ -124,7 +133,7 @@ test('mandatory nickname: gate, native focus, validation and successful registra
     return { value: input.value, start: input.selectionStart, end: input.selectionEnd,
       pointerPrevented: pointer.defaultPrevented, contextPrevented: context.defaultPrevented };
   });
-  assert.deepEqual(native, { value: 'Runner_123', start: 0, end: 6, pointerPrevented: false, contextPrevented: false });
+  assert.deepEqual(native, { value: 'Runner Run 123', start: 0, end: 6, pointerPrevented: false, contextPrevented: false });
   assert.equal(await page.evaluate(() => document.getElementById('overlay').inert), true);
   const blocked = await page.evaluate(() => { try { service.startRun(); return false; } catch { return true; } });
   assert.equal(blocked, true);
@@ -140,7 +149,7 @@ test('reload preserves device/profile; confirmed player can open offline', { tim
   const token = await page.evaluate(() => service.token);
   await load();
   assert.equal(await page.evaluate(() => service.token), token);
-  assert.equal(await page.evaluate(() => service.profile.nickname), 'Runner_123');
+  assert.equal(await page.evaluate(() => service.profile.nickname), 'Runner Run 123');
   offline(true); await load();
   assert.equal(await page.evaluate(() => service.canPlay), true);
   assert.equal(await page.locator('#nickname-gate').isVisible(), false);

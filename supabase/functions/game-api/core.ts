@@ -20,7 +20,7 @@ export function validate(input: Record<string, unknown>) {
   if (action === 'profile-rename' || (action === 'profile' && input.nickname !== undefined)) {
     if (typeof input.nickname !== 'string') throw new ApiError('invalid_nickname');
     input.nickname = input.nickname.normalize('NFKC').trim();
-    if (!/^[\p{L}\p{N}_-]{3,20}$/u.test(input.nickname as string)) throw new ApiError('invalid_nickname');
+    if (!/^[\p{L}\p{N}_ -]{3,20}$/u.test(input.nickname as string)) throw new ApiError('invalid_nickname');
   }
   if (action === 'heartbeat' && (!Number.isInteger(input.active_seconds) || Number(input.active_seconds) < 0 || Number(input.active_seconds) > 86400)) throw new ApiError('invalid_active_seconds');
   if (action === 'run-finish') {
