@@ -40,6 +40,14 @@ try {
       assert.equal(active.bonusBackpackVisible,true);
       assert.ok(active.bonusSmokeCount>0);
       await page.screenshot({path:`test-results/${engine}-jetpack.png`});
+      await page.evaluate(()=>{
+        const r=window.__runner;
+        r.camera.update=()=>{};
+        r.camera.camera.position.set(9,6,0);
+        r.camera.camera.lookAt(0,5,0);
+        r.render();
+      });
+      await page.screenshot({path:`test-results/${engine}-jetpack-side.png`});
       const hidden=await page.evaluate(()=>{
         const r=window.__runner,g=r.game;
         g.bonuses.activate(1);g.bonuses.activate(3);g.bonuses.activate(6);

@@ -23,9 +23,15 @@ export class AnimatedDinosaur {
   private readonly death = new DeathMotion();
   private readonly leftFoot: THREE.Bone;
   private readonly rightFoot: THREE.Bone;
+  private readonly flightTorso: THREE.Bone;
+  private readonly flightHead: THREE.Bone;
+  private readonly flightTail: THREE.Bone;
   private readonly off: (() => void)[];
   constructor(models: ModelLibrary, game: Simulation) {
     this.mesh = models.dinosaur;
+    this.flightTorso = this.mesh.skeleton.bones.find(b => b.name === "dino-torso")!;
+    this.flightHead = this.mesh.skeleton.bones.find(b => b.name === "dino-head")!;
+    this.flightTail = this.mesh.skeleton.bones.find(b => b.name === "dino-tail")!;
     this.leftFoot = this.mesh.skeleton.bones.find(
       (b) => b.name === "dino-shin-l",
     )!;
@@ -111,6 +117,14 @@ export class AnimatedDinosaur {
         action.setEffectiveWeight(weight);
       }
     if (animate && !dying) this.mixer.update(0);
+    // The muzzle points along local -Z while the torso's long axis is +Y.
+    // Rotating the whole rig alone therefore sends the muzzle vertically.
+    // Fold the limbs with duck, but author torso/head flight rotations separately.
+    if (game.bonuses.active(0) && !dying) {
+      this.flightTorso.rotation.set(0, 0, 0);
+      this.flightHead.rotation.set(Math.PI / 2, 0, 0);
+      this.flightTail.rotation.set(Math.PI / 2, 0, 0);
+    }
     this.mesh.position.set(
       0,
       THREE.MathUtils.lerp(
@@ -122,7 +136,7 @@ export class AnimatedDinosaur {
     );
     this.mesh.rotation.set(
       game.bonuses.active(0)
-        ? Math.PI / 2
+        ? -Math.PI / 2
         : airborne
         ? game.diving
           ? 0.18
