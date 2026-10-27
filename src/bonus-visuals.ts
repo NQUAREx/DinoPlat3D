@@ -5,7 +5,8 @@ import type { BonusModels } from "./bonus-models";
 import type { Simulation } from "./simulation";
 import type { RenderPose } from "./render-pose";
 
-const SMOKE_CAPACITY = 48, SMOKE_LIFE = .7;
+const SMOKE_CAPACITY = 96, SMOKE_LIFE = .7;
+const FLAME = new THREE.Color(0xff4b16), FLAME_TIP = new THREE.Color(0xffd52a), ASH = new THREE.Color(0x92999d);
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
 /** Fixed visual resources, driven exclusively by active simulation time.
@@ -15,7 +16,7 @@ export class BonusVisuals {
   readonly turbo: THREE.Mesh;
   readonly smoke: THREE.InstancedMesh;
   private readonly attachmentMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
-  private readonly smokeMaterial = new THREE.MeshLambertMaterial({ color: 0xd8e4e7 });
+  private readonly smokeMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
   private readonly life = new Float32Array(SMOKE_CAPACITY);
   private readonly x = new Float64Array(SMOKE_CAPACITY);
   private readonly z = new Float64Array(SMOKE_CAPACITY);
@@ -24,6 +25,7 @@ export class BonusVisuals {
   private readonly vy = new Float32Array(SMOKE_CAPACITY);
   private readonly vz = new Float32Array(SMOKE_CAPACITY);
   private readonly matrix = new THREE.Matrix4();
+  private readonly particleColor = new THREE.Color();
   private readonly nozzle = new THREE.Vector3();
   private readonly exhaustDirection = new THREE.Vector3();
   private readonly uploadRange = { start: 0, count: 0 };
@@ -100,21 +102,22 @@ export class BonusVisuals {
 
     // Exponential arrival plus BonusState's smooth expiry envelope; snap the
     // tiny tail to zero so normal day/night fog is restored exactly.
-    const fogTarget = inRun ? clamp(bonuses.strength(BonusKind.Blindness)) : 0;
+    const fogTarget = inRun ? .58 * clamp(bonuses.strength(BonusKind.Blindness)) : 0;
     this.fogStrength += (fogTarget - this.fogStrength) * (1 - Math.exp(-dt / .12));
     if (!fogTarget && this.fogStrength < .001) this.fogStrength = 0;
     const fog = this.scene.fog as THREE.Fog;
     fog.color.multiplyScalar(1 - this.fogStrength);
-    fog.near = THREE.MathUtils.lerp(fog.near, 3, this.fogStrength);
-    fog.far = THREE.MathUtils.lerp(fog.far, 12, this.fogStrength);
+    fog.near = THREE.MathUtils.lerp(fog.near, 5, this.fogStrength);
+    fog.far = THREE.MathUtils.lerp(fog.far, 22, this.fogStrength);
 
     this.shakeStrength = inRun && !this.reducedMotion ? clamp(bonuses.strength(BonusKind.Shake)) : 0;
-    if (this.shakeStrength) {
-      const strength = this.shakeStrength, t = this.clock;
-      camera.translateX(Math.sin(t * 49) * .16 * strength);
-      camera.translateY(Math.sin(t * 61) * .09 * strength);
-      camera.rotateZ(Math.sin(t * 43) * .035 * strength);
-      camera.rotateY(Math.sin(t * 37) * .018 * strength);
+    if (this.shakeStrength || (jet && !this.reducedMotion)) {
+      const strength = Math.max(this.shakeStrength, jet ? .25 : 0), t = this.clock;
+      const flightShake = jet ? 2 : 1;
+      camera.translateX(Math.sin(t * 49) * .16 * strength * flightShake);
+      camera.translateY(Math.sin(t * 61) * .09 * strength * flightShake);
+      camera.rotateZ(Math.sin(t * 43) * .035 * strength * flightShake);
+      camera.rotateY(Math.sin(t * 37) * .018 * strength * flightShake);
       camera.updateMatrixWorld();
     }
 
@@ -122,7 +125,7 @@ export class BonusVisuals {
     if (jet && dt > 0 && !this.reducedMotion) {
       this.backpack.updateWorldMatrix(true, false);
       this.exhaustDirection.set(0, -1, 0).transformDirection(this.backpack.matrixWorld);
-      this.emission += dt * 25;
+      this.emission += dt * 50;
       // At most three pairs per update; the fixed circular pool cannot grow.
       const pairs = Math.min(3, Math.floor(this.emission));
       this.emission -= pairs;
@@ -142,7 +145,8 @@ export class BonusVisuals {
     for (let i = 0; i < SMOKE_CAPACITY; i++) {
       if (!this.life[i]) continue;
       const age = SMOKE_LIFE - this.life[i];
-      const size = (.065 + age * .22) * Math.min(1, this.life[i] / .18);
+      const phase = age / SMOKE_LIFE;
+      const size = (.22 * (1 - phase) + .035) * Math.min(1, this.life[i] / .12);
       const x = this.x[i] - pose.x + this.vx[i] * age;
       const y = this.y[i] + this.vy[i] * age + age * age * .3;
       const z = pose.z - this.z[i] + this.vz[i] * age;
@@ -153,6 +157,11 @@ export class BonusVisuals {
       this.matrix.makeScale(size, size, size);
       this.matrix.setPosition(x, y, z);
       this.smoke.setMatrixAt(count++, this.matrix);
+      this.particleColor.copy(phase < .28 ? FLAME : FLAME_TIP).lerp(
+        phase < .28 ? FLAME_TIP : ASH,
+        phase < .28 ? phase / .28 : Math.min(1, (phase - .28) / .72),
+      );
+      this.smoke.setColorAt(count - 1, this.particleColor);
     }
     this.smoke.count = count;
     this.smoke.visible = count > 0;
@@ -161,6 +170,7 @@ export class BonusVisuals {
       this.smoke.instanceMatrix.updateRanges[0] = this.uploadRange;
       this.smoke.instanceMatrix.updateRanges.length = 1;
       this.smoke.instanceMatrix.needsUpdate = true;
+      if (this.smoke.instanceColor) this.smoke.instanceColor.needsUpdate = true;
     }
   }
 

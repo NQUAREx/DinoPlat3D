@@ -121,7 +121,9 @@ export class AnimatedDinosaur {
       0,
     );
     this.mesh.rotation.set(
-      airborne
+      game.bonuses.active(0)
+        ? Math.PI / 2
+        : airborne
         ? game.diving
           ? 0.18
           : game.velocityY > 0

@@ -234,8 +234,9 @@ export class Simulation {
     // runSpeed remains the eased baseline, so refresh/expiry never compounds
     // turbo. Every movement, score and generation consumer sees the same cap.
     const turbo = this.bonuses.active(BonusKind.Turbo);
-    const surfaceSpeed = Math.min(turbo ? TURBO_MAX_SPEED : Rules.maxSpeed, this.runSpeed * (turbo ? 1.4 : 1));
-    this.speed = surfaceSpeed * this.slopeSpeedFactor;
+    const scoringSpeed = Math.min(turbo ? TURBO_MAX_SPEED : Rules.maxSpeed, this.runSpeed * (turbo ? 1.4 : 1));
+    const surfaceSpeed = flying ? this.runSpeed * 3 : scoringSpeed;
+    this.speed = surfaceSpeed * (flying ? 1 : this.slopeSpeedFactor);
     this.distance += surfaceSpeed * dt;
     let scoreDt = dt;
     if (this.steering !== 0) {
@@ -259,7 +260,7 @@ export class Simulation {
         }
       }
     }
-    this.scoreDistance += surfaceSpeed * scoreDt;
+    this.scoreDistance += scoringSpeed * scoreDt;
     const midHeading = (this.heading + this.previousHeading) * 0.5;
     this.x -= Math.sin(midHeading) * this.speed * dt;
     this.z += Math.cos(midHeading) * this.speed * dt;
@@ -295,7 +296,7 @@ export class Simulation {
       this.crouch = this.crouchRemaining = 0;
       if (flying) {
         const height = Math.max(0, this.previousY);
-        this.y = height + (5 - height) * (1 - Math.exp(-dt / 0.25));
+        this.y = height + (5 - height) * (1 - Math.exp(-dt / (0.25 / 3)));
         this.flightLanding = true;
         this.flightDescentSpeed = 0;
       } else {
