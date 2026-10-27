@@ -1172,7 +1172,7 @@ input[data-native-input] {
 #profile-rename[hidden] { display: none; }
 #profile-rename svg { width: 13px; height: 13px; fill: currentColor; }
 .menu-content .online-panel { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; text-align: left; }
-#leaderboard-panel .online-table-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#leaderboard-panel .online-table-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; touch-action: none; }
 #leaderboard-rows tr:nth-child(1) { background: #f5d45f; color: #60430c; }
 #leaderboard-rows tr:nth-child(2) { background: #dce4ec; color: #39485a; }
 #leaderboard-rows tr:nth-child(3) { background: #d99a62; color: #59351d; }
