@@ -20,8 +20,8 @@ import { CachedShadows } from "../src/shadows.ts";
 test("day/night model is fixed-time deterministic, wraps and supports frozen time", () => {
   const day = new DayCycle();
   assert.equal(day.sample(0), 9);
-  assert.equal(day.sample(180), 21);
-  assert.equal(day.sample(360), 9);
+  assert.equal(day.sample(180 / 1.3), 21);
+  assert.equal(day.sample(360 / 1.3), 9);
   day.setTime(18);
   assert.equal(day.sample(999), 18);
   day.setTime(-1);

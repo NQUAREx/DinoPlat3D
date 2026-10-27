@@ -235,7 +235,7 @@ export class Simulation {
     // turbo. Every movement, score and generation consumer sees the same cap.
     const turbo = this.bonuses.active(BonusKind.Turbo);
     const scoringSpeed = Math.min(turbo ? TURBO_MAX_SPEED : Rules.maxSpeed, this.runSpeed * (turbo ? 1.4 : 1));
-    const surfaceSpeed = flying ? this.runSpeed * 3 : scoringSpeed;
+    const surfaceSpeed = flying ? this.runSpeed * 4.5 : scoringSpeed;
     this.speed = surfaceSpeed * (flying ? 1 : this.slopeSpeedFactor);
     this.distance += surfaceSpeed * dt;
     let scoreDt = dt;

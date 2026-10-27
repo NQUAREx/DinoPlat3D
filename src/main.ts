@@ -579,6 +579,7 @@ class GameApplication {
       this.ui.show(this.game);
     }
     this.ui.update(this.game);
+    this.sound.setJetpack(this.game.phase === "running" && !this.game.hitStopRemaining && this.game.bonuses.active(0));
     this.view.draw(
       this.game.phase === "running" || this.game.phase === "dying"
         ? this.accumulator / STEP

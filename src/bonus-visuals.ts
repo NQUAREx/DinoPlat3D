@@ -5,7 +5,7 @@ import type { BonusModels } from "./bonus-models";
 import type { Simulation } from "./simulation";
 import type { RenderPose } from "./render-pose";
 
-const SMOKE_CAPACITY = 96, SMOKE_LIFE = .7;
+const SMOKE_CAPACITY = 160, SMOKE_LIFE = .7;
 const FLAME = new THREE.Color(0xff4b16), FLAME_TIP = new THREE.Color(0xffd52a), ASH = new THREE.Color(0x92999d);
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -102,13 +102,13 @@ export class BonusVisuals {
 
     // Exponential arrival plus BonusState's smooth expiry envelope; snap the
     // tiny tail to zero so normal day/night fog is restored exactly.
-    const fogTarget = inRun ? .58 * clamp(bonuses.strength(BonusKind.Blindness)) : 0;
+    const fogTarget = inRun ? clamp(bonuses.strength(BonusKind.Blindness)) : 0;
     this.fogStrength += (fogTarget - this.fogStrength) * (1 - Math.exp(-dt / .12));
     if (!fogTarget && this.fogStrength < .001) this.fogStrength = 0;
     const fog = this.scene.fog as THREE.Fog;
     fog.color.multiplyScalar(1 - this.fogStrength);
-    fog.near = THREE.MathUtils.lerp(fog.near, 5, this.fogStrength);
-    fog.far = THREE.MathUtils.lerp(fog.far, 22, this.fogStrength);
+    fog.near = THREE.MathUtils.lerp(fog.near, 9, this.fogStrength);
+    fog.far = THREE.MathUtils.lerp(fog.far, 16, this.fogStrength);
 
     this.shakeStrength = inRun && !this.reducedMotion ? clamp(bonuses.strength(BonusKind.Shake)) : 0;
     if (this.shakeStrength || (jet && !this.reducedMotion)) {
@@ -125,9 +125,9 @@ export class BonusVisuals {
     if (jet && dt > 0 && !this.reducedMotion) {
       this.backpack.updateWorldMatrix(true, false);
       this.exhaustDirection.set(0, -1, 0).transformDirection(this.backpack.matrixWorld);
-      this.emission += dt * 50;
+      this.emission += dt * 100;
       // At most three pairs per update; the fixed circular pool cannot grow.
-      const pairs = Math.min(3, Math.floor(this.emission));
+      const pairs = Math.min(10, Math.floor(this.emission));
       this.emission -= pairs;
       for (let pair = 0; pair < pairs; pair++) for (let side = 0; side < 2; side++) {
         const i = this.cursor++ % SMOKE_CAPACITY;
@@ -157,9 +157,9 @@ export class BonusVisuals {
       this.matrix.makeScale(size, size, size);
       this.matrix.setPosition(x, y, z);
       this.smoke.setMatrixAt(count++, this.matrix);
-      this.particleColor.copy(phase < .28 ? FLAME : FLAME_TIP).lerp(
-        phase < .28 ? FLAME_TIP : ASH,
-        phase < .28 ? phase / .28 : Math.min(1, (phase - .28) / .72),
+      this.particleColor.copy(phase < .07 ? FLAME : FLAME_TIP).lerp(
+        phase < .07 ? FLAME_TIP : ASH,
+        phase < .07 ? phase / .07 : Math.min(1, (phase - .07) / .13),
       );
       this.smoke.setColorAt(count - 1, this.particleColor);
     }

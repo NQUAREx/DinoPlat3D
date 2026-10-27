@@ -87,7 +87,7 @@ test("exhaust follows both rotated nozzles, is bounded, pauses/freezes, and reba
   f.avatar.rotation.set(.3, 1.4, 0);
   f.pose.x = 1e6; f.pose.z = -1e6;
   f.frame(); f.frame(.05);
-  assert.equal(f.visuals.smoke.count, 4);
+  assert.equal(f.visuals.smoke.count, 10);
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3();
   for (let side = 0; side < 2; side++) {
     f.visuals.smoke.getMatrixAt(side, matrix);
@@ -96,7 +96,7 @@ test("exhaust follows both rotated nozzles, is bounded, pauses/freezes, and reba
     assert.ok(position.distanceTo(expected) < 1e-5, "actual transformed nozzle");
   }
   for (let i = 0; i < 100; i++) f.frame();
-  assert.ok(f.visuals.smoke.count > 20 && f.visuals.smoke.count <= 96);
+  assert.ok(f.visuals.smoke.count > 20 && f.visuals.smoke.count <= 160);
   const frozen = f.visuals.smoke.instanceMatrix.array.slice();
   f.game.phase = "paused"; f.frame(.5);
   assert.deepEqual(f.visuals.smoke.instanceMatrix.array, frozen);
@@ -122,9 +122,9 @@ test("soft fog eases to 5/22 then restores day fog; shake is bounded and reduced
       assert.ok(f.camera.position.length() < .38);
       assert.ok(f.camera.quaternion.angleTo(new THREE.Quaternion()) < .11);
     }
-    assert.ok(Math.abs((f.scene.fog as THREE.Fog).near - (36 + (5 - 36) * .58)) < .001);
-    assert.ok(Math.abs((f.scene.fog as THREE.Fog).far - (84 + (22 - 84) * .58)) < .001);
-    assert.notEqual(f.scene.fog!.color.getHex(), 0);
+    assert.ok(Math.abs((f.scene.fog as THREE.Fog).near - 9) < .001);
+    assert.ok(Math.abs((f.scene.fog as THREE.Fog).far - 16) < .001);
+    assert.equal(f.scene.fog!.color.getHex(), 0);
     assert.equal(f.visuals.shakeStrength, reduced ? 0 : 1);
     assert.equal(f.visuals.turbo.visible, true);
     assert.equal(f.visuals.backpack.visible, true);

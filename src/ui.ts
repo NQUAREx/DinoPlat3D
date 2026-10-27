@@ -2,6 +2,7 @@ import type { Phase, Simulation } from "./simulation";
 import { ShopUI } from "./shop-ui";
 import type { CosmeticCategory, CosmeticInventory } from "./cosmetics";
 import { BONUS_UI } from "./help";
+import { BONUS_ICON_URLS } from "./bonus-icons";
 
 /** DOM ownership and dirty counters live outside simulation/rendering. */
 export class GameUI {
@@ -25,7 +26,7 @@ export class GameUI {
   private readonly effects = document.createElement("div");
   private readonly effectSlots = BONUS_UI.map((definition) => {
     const element = document.createElement("div"),
-      icon = document.createElement("span"),
+      icon = document.createElement("img"),
       countdown = document.createElement("span");
     const negative = definition.negative;
     element.className = "active-effect";
@@ -35,7 +36,8 @@ export class GameUI {
     element.setAttribute("role", "img");
     element.title = `${negative ? "Опасный эффект: " : ""}${definition.name}`;
     icon.className = "effect-icon";
-    icon.textContent = definition.icon;
+    icon.src = BONUS_ICON_URLS[definition.kind];
+    icon.alt = "";
     icon.setAttribute("aria-hidden", "true");
     countdown.setAttribute("aria-hidden", "true");
     element.append(icon, countdown);

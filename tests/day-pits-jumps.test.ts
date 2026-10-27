@@ -10,18 +10,18 @@ import { LandscapeField, Surface } from "../src/landscape.ts";
 import { Ground } from "../src/ground.ts";
 import { RenderPose } from "../src/render-pose.ts";
 
-test("automatic day still takes 360 active seconds; first dusk/night start after 105/135 seconds", () => {
+test("automatic day advances 30 percent faster with proportionate dusk and night", () => {
   const day = new DayCycle(), light = new LightingRig();
   try {
-    assert.equal(day.automatic, true); assert.equal(day.cycleSeconds, 360);
-    assert.equal(day.sample(0), 9); assert.equal(day.sample(105), 16);
-    assert.equal(day.sample(135), 18); assert.equal(day.sample(180), 21);
-    assert.equal(day.sample(360), 9);
+    assert.equal(day.automatic, true); assert.equal(day.cycleSeconds, 360 / 1.3);
+    assert.equal(day.sample(0), 9); assert.equal(day.sample(105 / 1.3), 16);
+    assert.equal(day.sample(135 / 1.3), 18); assert.equal(day.sample(180 / 1.3), 21);
+    assert.equal(day.sample(360 / 1.3), 9);
     light.update(0); const morning = light.fogColour.getHex();
-    light.update(180); assert.notEqual(light.fogColour.getHex(), morning);
+    light.update(180 / 1.3); assert.notEqual(light.fogColour.getHex(), morning);
     assert.equal(light.source, "moon");
-    light.update(360); assert.equal(light.fogColour.getHex(), morning);
-    assert.equal(light.cycle.cycleSeconds, 360); assert.equal(light.cycle.automatic, true);
+    light.update(360 / 1.3); assert.equal(light.fogColour.getHex(), morning);
+    assert.equal(light.cycle.cycleSeconds, 360 / 1.3); assert.equal(light.cycle.automatic, true);
     const game = new Simulation(1); game.phase = "running";
     game.step(STEP); const time = game.time;
     game.phase = "paused"; game.step(30); assert.equal(game.time, time);

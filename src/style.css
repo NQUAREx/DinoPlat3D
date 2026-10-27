@@ -164,7 +164,7 @@ a:focus-visible {
 .active-effect {
   position: relative;
   display: flex;
-  flex: 0 1 44px;
+  flex: 0 1 56px;
   min-width: 0;
   align-items: center;
   flex-direction: column;
@@ -178,6 +178,8 @@ a:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 .effect-icon {
+  width: 34px;
+  height: 36px;
   font-family: system-ui, sans-serif;
   font-size: 19px;
   line-height: 22px;

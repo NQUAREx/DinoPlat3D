@@ -37,6 +37,37 @@ export class GameSound {
   private readonly voices: Voice[] = [];
   private readonly off: (() => void)[];
   private running = false;
+  private jet?: OscillatorNode;
+  private jetGain?: GainNode;
+  private jetNoise?: AudioBufferSourceNode;
+  private jetNoiseBuffer?: AudioBuffer;
+  setJetpack(active: boolean) {
+    active = active && this.running && this.enabled && this.context?.state === "running";
+    if (!active) {
+      this.jet?.stop(); this.jet?.disconnect(); this.jetGain?.disconnect();
+      this.jetNoise?.stop(); this.jetNoise?.disconnect();
+      this.jet = undefined; this.jetGain = undefined; this.jetNoise = undefined;
+      return;
+    }
+    if (this.jet || !this.context || !this.master) return;
+    this.jet = this.context.createOscillator();
+    this.jetGain = this.context.createGain();
+    this.jet.type = "sawtooth"; this.jet.frequency.value = 76;
+    this.jetGain.gain.value = .035;
+    this.jet.connect(this.jetGain); this.jetGain.connect(this.master); this.jet.start();
+    if (!this.jetNoiseBuffer) {
+      this.jetNoiseBuffer = this.context.createBuffer(1, Math.ceil(this.context.sampleRate * .5), this.context.sampleRate);
+      const data = this.jetNoiseBuffer.getChannelData(0);
+      let previous = 0;
+      for (let i = 0; i < data.length; i++) {
+        previous = (previous + (Math.random() * 2 - 1) * .15) / 1.15;
+        data[i] = previous * 5;
+      }
+    }
+    this.jetNoise = this.context.createBufferSource();
+    this.jetNoise.buffer = this.jetNoiseBuffer; this.jetNoise.loop = true;
+    this.jetNoise.connect(this.jetGain); this.jetNoise.start();
+  }
   private alive = true;
   private sequence = 0;
   private stepSequence = 0;
@@ -259,6 +290,7 @@ export class GameSound {
   }
   setRunning(running: boolean) {
     this.running = running;
+    if (!running) this.setJetpack(false);
     if (running) this.startMusic();
     else this.stopMusic();
   }
@@ -334,6 +366,7 @@ export class GameSound {
     this.play(cue, 1, cue === "death" ? 0.65 : 0.85);
   }
   stop() {
+    this.setJetpack(false);
     this.pendingMenu = undefined;
     this.pendingCritical = undefined;
     this.stopMusic();

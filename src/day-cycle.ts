@@ -2,7 +2,7 @@
 export class DayCycle {
   hours = 9;
   automatic = true;
-  private duration = 360;
+  private duration = 360 / 1.3;
   get cycleSeconds() {
     return this.duration;
   }

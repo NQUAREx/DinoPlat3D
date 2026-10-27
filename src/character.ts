@@ -81,7 +81,7 @@ export class AnimatedDinosaur {
                 ? "run"
                 : "idle";
     this.frame = (distance / (Rules.stepStride * 2)) % 1;
-    const duckWeight = THREE.MathUtils.lerp(
+    const duckWeight = game.bonuses.active(0) ? 1 : THREE.MathUtils.lerp(
       game.previousCrouch,
       game.crouch,
       alpha,
