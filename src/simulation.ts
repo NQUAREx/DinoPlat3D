@@ -9,6 +9,7 @@ import { BonusKind, BonusState, TURBO_MAX_SPEED, bonusKindForObject } from "./bo
 
 export type Phase = "ready" | "running" | "dying" | "paused" | "over";
 export const STEP = Rules.step;
+const BONUS_SPAWN_WEIGHTS = [1, 3, 6, 1, 3, 1, 0.5] as const;
 
 /** Pure numerical simulation. World coordinates are Float64; the renderer uses
  * a moving player-centred origin before uploading any Float32 GPU positions. */
@@ -19,6 +20,7 @@ export class Simulation {
   readonly health = new Health(this.events);
   readonly pickupMotion = new PickupMotion();
   readonly bonuses = new BonusState();
+  private nextBonusDistance = 0;
   readonly world: WorldSpawner;
   phase: Phase = "ready";
   seed = 1;
@@ -92,6 +94,7 @@ export class Simulation {
     this.flightDescentSpeed = 0;
     this.magnetWasActive = false;
     this.bonuses.reset();
+    this.nextBonusDistance = 0;
     this.previousTime = this.previousBob = 0;
     this.feedbackTime = this.previousFeedbackTime = this.hitStopRemaining = 0;
     this.deathTime = this.previousDeathTime = 0;
@@ -261,6 +264,22 @@ export class Simulation {
     this.x -= Math.sin(midHeading) * this.speed * dt;
     this.z += Math.cos(midHeading) * this.speed * dt;
     this.world.update(this.x, this.z, surfaceSpeed);
+    if (this.distance >= this.nextBonusDistance) {
+      const initial = this.nextBonusDistance === 0;
+      let kind = ObjectKind.Jetpack;
+      if (!initial) {
+        let roll = ((Math.sin(this.seed + this.nextBonusDistance * 12.9898) * 43758.5453) % 1 + 1) % 1 * 15.5;
+        for (let i = 0; i < BONUS_SPAWN_WEIGHTS.length; i++) {
+          roll -= BONUS_SPAWN_WEIGHTS[i];
+          if (roll <= 0) { kind = ObjectKind.Jetpack + i; break; }
+        }
+      }
+      const ahead = initial ? 18 : 24;
+      const bx = this.x - Math.sin(this.heading) * ahead, bz = this.z + Math.cos(this.heading) * ahead;
+      const surface = this.landscape.surfaceAt(bx, bz);
+      if ((surface === Surface.Land || surface === Surface.Bridge) && this.world.spawnBonus(kind, bx, bz))
+        this.nextBonusDistance = initial ? 300 : this.nextBonusDistance + 300;
+    }
     const terrain = this.landscape.heightAt(this.x, this.z),
       ground = this.world.walkHeightAt(this.x, this.z, terrain),
       surface = this.landscape.surfaceAt(this.x, this.z);

@@ -348,6 +348,25 @@ export class WorldSpawner {
     }
     this.revision++;
   }
+  spawnBonus(kind: ObjectKind, x: number, z: number) {
+    const definition = this.registry.get(kind);
+    if (!definition || definition.weight <= 0) return false;
+    for (let slot = this.active.length - 1; slot >= 0; slot--) {
+      if (this.active[slot] || Math.abs(this.columns[slot] * 16 - x) > 48 || Math.abs(this.rows[slot] * 16 - z) > 48) continue;
+      const bounds = definition.colliders[0];
+      this.kinds[slot] = kind;
+      this.variants[slot] = this.motion[slot] = this.magnetized[slot] = 0;
+      this.lean[slot] = this.angles[slot] = 0;
+      this.x[slot] = this.previousX[slot] = x;
+      this.z[slot] = this.previousZ[slot] = z;
+      this.baseY[slot] = this.previousBaseY[slot] = (this.landscape?.heightAt(x, z) ?? 0) + (bounds.baseY ?? 0);
+      this.halfX[slot] = this.halfZ[slot] = Math.max(bounds.halfX, bounds.halfZ);
+      this.height[slot] = bounds.height;
+      this.active[slot] = 1;
+      return true;
+    }
+    return false;
+  }
   private populate(
     slot: number,
     column: number,
@@ -626,45 +645,24 @@ export class WorldSpawner {
           if (groundThreat) continue;
         } else if (d2 > 48 * 48 || d2 < 28 * 28 || dx * sin + dz * cos < -1e-9) continue;
         const inv = 1 / Math.sqrt(d2);
-        this.velocityX[i] = bird ? -dx * inv * 9 : cos * 7.5;
-        this.velocityZ[i] = bird ? -dz * inv * 9 : -sin * 7.5;
+        this.velocityX[i] = bird ? -dx * inv * 4.5 : cos * 7.5;
+        this.velocityZ[i] = bird ? -dz * inv * 4.5 : -sin * 7.5;
         this.angles[i] = Math.atan2(-this.velocityX[i], this.velocityZ[i]);
         this.motion[i] = 3;
         this.fallStart[i] = time;
         this.nextMovingTime = time + 5;
       }
       if (this.kinds[i] === ObjectKind.Bird && this.motion[i] === 3 && d2 <= 10 * 10) {
-        // Solve |playerVelocity*t - birdOffset| = 9*t once at lock.
-        // Keep the earliest positive intercept within one second; an escaping
-        // runner with no reachable intercept leaves the existing course intact.
-        const vx = sin * speed, vz = cos * speed,
-          a = vx * vx + vz * vz - 9 * 9,
-          b = -2 * (dx * vx + dz * vz),
-          discriminant = b * b - 4 * a * d2;
-        let intercept = Infinity;
-        if (Math.abs(a) < 1e-9) {
-          if (Math.abs(b) > 1e-9 && -d2 / b > 0) intercept = -d2 / b;
-        } else if (discriminant >= 0) {
-          const root = Math.sqrt(discriminant),
-            first = (-b - root) / (2 * a),
-            second = (-b + root) / (2 * a);
-          if (first > 0) intercept = first;
-          if (second > 0 && second < intercept) intercept = second;
-        }
-        if (intercept <= 1) {
-          this.velocityX[i] = vx - dx / intercept;
-          this.velocityZ[i] = vz - dz / intercept;
-          this.angles[i] = Math.atan2(-this.velocityX[i], this.velocityZ[i]);
-        }
         this.motion[i] = 4; // Fixed fly-through; never reacquire after a dodge.
       }
       if (this.motion[i] === 3 || this.motion[i] === 4) {
         if (this.kinds[i] === ObjectKind.Bird && this.motion[i] === 3) {
           // Track only at range; the last 10m are a dodgeable straight fly-through.
           const distance = Math.sqrt(d2),
-            factor = distance > 0 ? Math.min(9, distance / dt) / distance : 0;
-          this.velocityX[i] = -dx * factor;
-          this.velocityZ[i] = -dz * factor;
+            factor = distance > 0 ? 4.5 / distance : 0,
+            blend = 1 - Math.exp(-dt / 1.2);
+          this.velocityX[i] += (-dx * factor - this.velocityX[i]) * blend;
+          this.velocityZ[i] += (-dz * factor - this.velocityZ[i]) * blend;
           this.angles[i] = Math.atan2(-this.velocityX[i], this.velocityZ[i]);
         }
         this.x[i] += this.velocityX[i] * dt;

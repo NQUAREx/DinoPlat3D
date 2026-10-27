@@ -3,6 +3,7 @@ export function panelScroll(root: HTMLElement, signal: AbortSignal) {
   let pointer = -1,
     y = 0,
     scroll = 0;
+  let target = root;
   root.addEventListener(
     "pointerdown",
     (event) => {
@@ -12,8 +13,10 @@ export function panelScroll(root: HTMLElement, signal: AbortSignal) {
       )
         return;
       pointer = event.pointerId;
+      target = (event.target as Element).closest<HTMLElement>(".online-table-scroll") ?? root;
       y = event.clientY;
-      scroll = root.scrollTop;
+      scroll = target.scrollTop;
+      event.preventDefault();
       root.setPointerCapture(pointer);
     },
     { signal },
@@ -22,7 +25,7 @@ export function panelScroll(root: HTMLElement, signal: AbortSignal) {
     "pointermove",
     (event) => {
       if (event.pointerId === pointer)
-        root.scrollTop = scroll + y - event.clientY;
+        target.scrollTop = scroll + y - event.clientY;
     },
     { signal },
   );
