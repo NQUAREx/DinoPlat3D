@@ -109,7 +109,7 @@ test("birds are overhead hazards: crouch clears their simple coordinate collider
   }
 });
 
-test("incoming birds intercept a running target instead of its old position",()=>{
+test("slow incoming birds allow offset runners to pass without predictive snapping",()=>{
   const game=new Simulation(1979),w=game.world;
   const i=w.active.findIndex((active,n)=>!!active&&w.kinds[n]===ObjectKind.Bird);
   assert.ok(i>=0);const px=w.x[i]-3,pz=w.z[i]-56,speed=24;
@@ -118,5 +118,5 @@ test("incoming birds intercept a running target instead of its old position",()=
     const time=frame/120;w.step(time,STEP,px,pz+speed*time,0,speed);
     closest=Math.min(closest,Math.hypot(w.x[i]-px,w.z[i]-(pz+speed*(time+STEP))));
   }
-  assert.ok(closest<.48*.65+.22,`encounter must enter the simple collider, distance ${closest}`);
+  assert.ok(closest>.48*.65+.22,`offset runner can avoid the slow bird, distance ${closest}`);
 });

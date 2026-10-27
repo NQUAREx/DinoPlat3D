@@ -75,6 +75,7 @@ test("dry pit vertices produce a deep unbridged hole even inside a bridge corrid
 test("jump inherits uphill/downhill running velocity instead of being caught by the slope", () => {
   for (const grade of [-1.6, -0.6, 0, 0.6, 1.1, 1.6]) {
     const g = new Simulation(1);
+    for (let kind = ObjectKind.Jetpack; kind <= ObjectKind.Shake; kind++) g.world.registry.setWeight(kind, 0);
     g.landscape.heightAt = (_x, z) => grade * z;
     g.landscape.surfaceAt = () => Surface.Land;
     for (const kind of [ObjectKind.Cactus, ObjectKind.Coin, ObjectKind.Diamond, ObjectKind.Heart]) g.world.registry.setWeight(kind, 0);
