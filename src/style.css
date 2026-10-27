@@ -1171,7 +1171,12 @@ input[data-native-input] {
 #profile-rename { display: grid; place-items: center; flex: 0 0 22px; width: 22px; min-height: 22px; height: 22px; padding: 3px; border-width: 1px; }
 #profile-rename[hidden] { display: none; }
 #profile-rename svg { width: 13px; height: 13px; fill: currentColor; }
-.menu-content .online-panel { display: flex; flex-direction: column; gap: 8px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; text-align: left; }
+.menu-content .online-panel { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; text-align: left; }
+#leaderboard-panel .online-table-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#leaderboard-rows tr:nth-child(1) { background: #f5d45f; color: #60430c; }
+#leaderboard-rows tr:nth-child(2) { background: #dce4ec; color: #39485a; }
+#leaderboard-rows tr:nth-child(3) { background: #d99a62; color: #59351d; }
+#leaderboard-rows tr:nth-child(-n+3) td:first-child { font-weight: 700; }
 .online-panel h2, #nickname-title { font-size: 10px; line-height: 1.9; font-weight: 400; margin: 0 0 5px; overflow-wrap: anywhere; }
 .online-tabs { display: flex; gap: 4px; flex-shrink: 0; }
 .online-tabs > button { flex: 1; min-width: 0; }
