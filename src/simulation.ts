@@ -1,10 +1,11 @@
 import { Rules } from "./config";
 import { GameEvent, GameEvents } from "./events";
 import { Currency, Health, Wallet } from "./progression";
-import { ObjectKind, ObjectRegistry, WorldSpawner } from "./world";
+import { ObjectKind, ObjectRegistry, WorldSpawner, type ObjectDefinition } from "./world";
 import { PickupMotion } from "./pickup-motion";
 import { Tuning } from "./tuning";
 import { LandscapeField, Surface } from "./landscape";
+import { BonusKind, BonusState, TURBO_MAX_SPEED, bonusKindForObject } from "./bonuses";
 
 export type Phase = "ready" | "running" | "dying" | "paused" | "over";
 export const STEP = Rules.step;
@@ -17,6 +18,7 @@ export class Simulation {
   readonly wallet = new Wallet(this.events);
   readonly health = new Health(this.events);
   readonly pickupMotion = new PickupMotion();
+  readonly bonuses = new BonusState();
   readonly world: WorldSpawner;
   phase: Phase = "ready";
   seed = 1;
@@ -40,6 +42,9 @@ export class Simulation {
   velocityY = 0;
   private groundVelocity = 0;
   private jumpActive = false;
+  private flightLanding = false;
+  private flightDescentSpeed = 0;
+  private magnetWasActive = false;
   diving = false;
   crouch = 0;
   previousCrouch = 0;
@@ -83,6 +88,10 @@ export class Simulation {
     this.scoreLocked = false;
     this.groundVelocity = 0;
     this.jumpActive = false;
+    this.flightLanding = false;
+    this.flightDescentSpeed = 0;
+    this.magnetWasActive = false;
+    this.bonuses.reset();
     this.previousTime = this.previousBob = 0;
     this.feedbackTime = this.previousFeedbackTime = this.hitStopRemaining = 0;
     this.deathTime = this.previousDeathTime = 0;
@@ -124,6 +133,7 @@ export class Simulation {
     if (
       this.phase !== "running" ||
       this.hitStopRemaining ||
+      this.bonuses.active(BonusKind.Jetpack) ||
       this.y !== 0 ||
       this.jumpActive ||
       this.falling
@@ -144,8 +154,9 @@ export class Simulation {
     );
   }
   down() {
-    if (this.phase !== "running" || this.hitStopRemaining) return;
+    if (this.phase !== "running" || this.hitStopRemaining || this.bonuses.active(BonusKind.Jetpack)) return;
     if (this.y > 0 || this.velocityY > 0 || this.jumpActive) {
+      this.flightLanding = false;
       this.velocityY = Math.min(this.velocityY, -Rules.diveSpeed);
       if (!this.diving) this.events.emit(GameEvent.Dive);
       this.diving = true;
@@ -187,6 +198,8 @@ export class Simulation {
     this.time += dt;
     this.pickupMotion.update(this.time);
     this.health.step(dt);
+    this.bonuses.step(dt);
+    const flying = this.bonuses.active(BonusKind.Jetpack);
     const ducking = this.crouchRemaining > 0;
     this.crouchRemaining = Math.max(0, this.crouchRemaining - dt);
     this.crouch +=
@@ -196,12 +209,12 @@ export class Simulation {
         Rules.duckBlendSpeed * dt,
       );
     // Unwrapped heading: releasing input preserves the new running direction.
-    this.heading -= this.steering * Rules.turnSpeed * dt;
+    this.heading -= this.steering * (this.bonuses.active(BonusKind.Reverse) ? -1 : 1) * Rules.turnSpeed * dt;
     this.movingX = -Math.sin(this.heading);
     const airborne =
       this.y > 0 || this.velocityY > 0 || this.jumpActive || this.diving || this.falling;
     let feet = this.groundY + this.y;
-    if (airborne) {
+    if (airborne && !flying && !this.flightLanding) {
       feet += this.velocityY * dt - (Rules.gravity * dt * dt) / 2;
       this.velocityY -= Rules.gravity * dt;
     }
@@ -215,8 +228,12 @@ export class Simulation {
       targetSpeed = Rules.startSpeed + (Rules.maxSpeed - Rules.startSpeed) * progress * progress * (3 - 2 * progress);
     if (this.health.immunity > 0) this.runSpeed = Rules.startSpeed;
     else this.runSpeed += (targetSpeed - this.runSpeed) * (1 - Math.exp(-dt / Tuning.generation.accelerationTime));
-    this.speed = this.runSpeed * this.slopeSpeedFactor;
-    this.distance += this.runSpeed * dt;
+    // runSpeed remains the eased baseline, so refresh/expiry never compounds
+    // turbo. Every movement, score and generation consumer sees the same cap.
+    const turbo = this.bonuses.active(BonusKind.Turbo);
+    const surfaceSpeed = Math.min(turbo ? TURBO_MAX_SPEED : Rules.maxSpeed, this.runSpeed * (turbo ? 1.4 : 1));
+    this.speed = surfaceSpeed * this.slopeSpeedFactor;
+    this.distance += surfaceSpeed * dt;
     let scoreDt = dt;
     if (this.steering !== 0) {
       scoreDt = this.scoreLocked
@@ -239,17 +256,43 @@ export class Simulation {
         }
       }
     }
-    this.scoreDistance += this.runSpeed * scoreDt;
+    this.scoreDistance += surfaceSpeed * scoreDt;
     const midHeading = (this.heading + this.previousHeading) * 0.5;
     this.x -= Math.sin(midHeading) * this.speed * dt;
     this.z += Math.cos(midHeading) * this.speed * dt;
-    this.world.update(this.x, this.z, this.runSpeed);
+    this.world.update(this.x, this.z, surfaceSpeed);
     const terrain = this.landscape.heightAt(this.x, this.z),
       ground = this.world.walkHeightAt(this.x, this.z, terrain),
       surface = this.landscape.surfaceAt(this.x, this.z);
     const support = surface === Surface.Land || surface === Surface.Bridge;
+    if (flying) this.falling = false;
     if (!this.falling) this.groundY = ground;
-    if (!airborne && support) {
+    if (flying || this.flightLanding) {
+      // Follow terrain-relative clearance even on steep slopes and across
+      // unsupported water/pit footprints. Expiry descends without teleporting.
+      this.groundVelocity = 0;
+      this.jumpActive = false;
+      this.diving = false;
+      this.crouch = this.crouchRemaining = 0;
+      if (flying) {
+        const height = Math.max(0, this.previousY);
+        this.y = height + (5 - height) * (1 - Math.exp(-dt / 0.25));
+        this.flightLanding = true;
+        this.flightDescentSpeed = 0;
+      } else {
+        const oldSpeed = this.flightDescentSpeed;
+        this.flightDescentSpeed = Math.min(8, oldSpeed + Rules.gravity * dt);
+        this.y = this.previousY - (oldSpeed + this.flightDescentSpeed) * 0.5 * dt;
+      }
+      this.velocityY = dt > 0 ? (this.groundY + this.y - this.previousGroundY - this.previousY) / dt : 0;
+      if (!flying && this.y <= 0) {
+        this.flightLanding = false;
+        if (support) {
+          this.y = this.velocityY = 0;
+          this.events.emit(GameEvent.Land);
+        } else this.falling = true;
+      }
+    } else if (!airborne && support) {
       this.y = 0;
       this.groundVelocity = dt > 0 ? (this.groundY - this.previousGroundY) / dt : 0;
     } else {
@@ -275,6 +318,7 @@ export class Simulation {
       Number.isFinite(this.viewHeading) ? this.viewHeading : this.heading,
       Number.isFinite(this.viewX) ? this.viewX : this.x,
       Number.isFinite(this.viewZ) ? this.viewZ : this.z);
+    this.attractCoins(dt);
     this.collisions();
     if (!this.hitStopRemaining && this.distance >= this.nextStep) {
       this.nextStep += Rules.stepStride;
@@ -296,7 +340,7 @@ export class Simulation {
       if (pool.kinds[i] === ObjectKind.Bird && pool.motion[i] !== 3 && pool.motion[i] !== 4) continue;
       const obstacleX = pool.collisionX(i),
         obstacleZ = pool.collisionZ(i);
-      const dynamic = pool.motion[i] === 1 || pool.motion[i] === 3 || pool.motion[i] === 4;
+      const dynamic = pool.motion[i] === 1 || pool.motion[i] === 3 || pool.motion[i] === 4 || !!pool.magnetized[i];
       const oldX = dynamic ? pool.previousX[i] : obstacleX,
         oldZ = dynamic ? pool.previousZ[i] : obstacleZ,
         oldBase = dynamic ? pool.previousBaseY[i] : pool.baseY[i];
@@ -305,7 +349,8 @@ export class Simulation {
       const broadZ = pool.halfZ[i] + Rules.playerRadius;
       if (Math.max(oldZ, obstacleZ) < minZ - broadZ || Math.min(oldZ, obstacleZ) > maxZ + broadZ) continue;
       const definition = pool.registry.get(pool.kinds[i]);
-      if (!definition || definition.walkable || (definition.blocking && this.health.immunity > 0))
+      if (!definition || definition.walkable || (definition.blocking &&
+        (this.health.immunity > 0 || this.bonuses.active(BonusKind.Invisibility))))
         continue;
       const blocking = definition.blocking;
       const scale = definition.blocking ? Rules.cactusHitScale : 1;
@@ -389,20 +434,71 @@ export class Simulation {
           return;
         }
       } else {
-        let amount = definition.reward ?? 1;
-        if (definition.kind === ObjectKind.Coin)
-          this.wallet.add(Currency.Coin, definition.reward ?? 1);
-        else if (definition.kind === ObjectKind.Diamond)
-          this.wallet.add(Currency.Diamond, definition.reward ?? 1);
-        else if (definition.healing !== undefined) {
-          const before = this.health.lives;
-          this.health.heal(definition.healing);
-          amount = this.health.lives - before;
-        }
-        this.events.emit(GameEvent.CollectedVisual, i);
-        pool.consume(i);
-        this.events.emit(GameEvent.Collected, definition.kind, amount);
+        this.collect(i, definition);
       }
     }
+  }
+  private attractCoins(dt: number) {
+    const pool = this.world, active = this.bonuses.active(BonusKind.Magnet);
+    if (!active && !this.magnetWasActive) return;
+    this.magnetWasActive = active;
+    const minZ = Math.min(this.previousZ, this.z) - 7, maxZ = Math.max(this.previousZ, this.z) + 7;
+    for (let i = 0; i < pool.active.length; i++) {
+      if (!pool.active[i] || pool.kinds[i] !== ObjectKind.Coin) continue;
+      pool.previousX[i] = pool.x[i];
+      pool.previousZ[i] = pool.z[i];
+      pool.previousBaseY[i] = pool.baseY[i];
+      if (!active) {
+        pool.magnetized[i] = 0;
+        continue;
+      }
+      if (!pool.magnetized[i] && pool.z[i] >= minZ && pool.z[i] <= maxZ && this.inMagnetRange(i))
+        pool.magnetized[i] = 1;
+      if (!pool.magnetized[i]) continue;
+      // Latch only within the swept 7m sphere, then visibly chase at 32m/s.
+      // Actual awards still go through the ordinary relative swept collider.
+      const dx = this.x - pool.x[i], dz = this.z - pool.z[i];
+      const dy = this.groundY + this.y + this.bodyHeight * 0.5 -
+        pool.height[i] * 0.5 - this.pickupMotion.bob - pool.baseY[i];
+      const distance = Math.hypot(dx, dy, dz);
+      const travel = distance > 0 ? Math.min(1, 32 * dt / distance) : 0;
+      pool.x[i] += dx * travel;
+      pool.z[i] += dz * travel;
+      pool.baseY[i] += dy * travel;
+    }
+  }
+  /** Closest point of the relative 3D sweep, including terrain, jump and bob. */
+  private inMagnetRange(slot: number) {
+    const pool = this.world;
+    const x = this.previousX - pool.x[slot], z = this.previousZ - pool.z[slot];
+    const oldHeight = Rules.playerBodyHeight + (Rules.duckBodyHeight - Rules.playerBodyHeight) * this.previousCrouch;
+    const y = this.previousGroundY + this.previousY + oldHeight * 0.5 -
+      pool.baseY[slot] - pool.height[slot] * 0.5 - this.previousBob;
+    const dx = this.x - this.previousX, dz = this.z - this.previousZ;
+    const dy = this.groundY + this.y - this.previousGroundY - this.previousY + (this.bodyHeight - oldHeight) * 0.5 -
+      (this.pickupMotion.bob - this.previousBob);
+    const lengthSq = dx * dx + dy * dy + dz * dz;
+    const t = lengthSq > 0 ? Math.max(0, Math.min(1, -(x * dx + y * dy + z * dz) / lengthSq)) : 0;
+    return (x + dx * t) ** 2 + (y + dy * t) ** 2 + (z + dz * t) ** 2 <= 49;
+  }
+  private collect(slot: number, definition: ObjectDefinition) {
+    let amount = definition.reward ?? 1;
+    const bonus = bonusKindForObject(definition.kind);
+    if (bonus !== undefined) {
+      amount = 1;
+      this.bonuses.activate(bonus);
+    }
+    else if (definition.kind === ObjectKind.Coin)
+      this.wallet.add(Currency.Coin, amount);
+    else if (definition.kind === ObjectKind.Diamond)
+      this.wallet.add(Currency.Diamond, amount);
+    else if (definition.healing !== undefined) {
+      const before = this.health.lives;
+      this.health.heal(definition.healing);
+      amount = this.health.lives - before;
+    }
+    this.events.emit(GameEvent.CollectedVisual, slot);
+    this.world.consume(slot);
+    this.events.emit(GameEvent.Collected, definition.kind, amount);
   }
 }

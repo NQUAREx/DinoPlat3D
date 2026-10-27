@@ -1,6 +1,7 @@
 import type { Phase, Simulation } from "./simulation";
 import { ShopUI } from "./shop-ui";
 import type { CosmeticCategory, CosmeticInventory } from "./cosmetics";
+import { BONUS_UI } from "./help";
 
 /** DOM ownership and dirty counters live outside simulation/rendering. */
 export class GameUI {
@@ -21,6 +22,30 @@ export class GameUI {
   ];
   private readonly shown = new Float64Array(5).fill(-1);
   private readonly hearts = this.element("lives").querySelectorAll("img");
+  private readonly effects = document.createElement("div");
+  private readonly effectSlots = BONUS_UI.map((definition) => {
+    const element = document.createElement("div"),
+      icon = document.createElement("span"),
+      countdown = document.createElement("span");
+    const negative = definition.negative;
+    element.className = "active-effect";
+    element.dataset.bonus = String(definition.kind);
+    element.dataset.negative = String(negative);
+    element.hidden = true;
+    element.setAttribute("role", "img");
+    element.title = `${negative ? "Опасный эффект: " : ""}${definition.name}`;
+    icon.className = "effect-icon";
+    icon.textContent = definition.icon;
+    icon.setAttribute("aria-hidden", "true");
+    countdown.setAttribute("aria-hidden", "true");
+    element.append(icon, countdown);
+    this.effects.append(element);
+    // Precompute every label once: no strings, arrays or nodes in the HUD loop.
+    const labels = Array.from({ length: Math.ceil(definition.duration) + 1 }, (_, seconds) =>
+      `${negative ? "Опасный эффект: " : ""}${definition.name}, осталось ${seconds} с`);
+    const times = Array.from({ length: labels.length }, (_, seconds) => `${seconds}с`);
+    return { element, countdown, labels, times, kind: definition.kind, shown: -1 };
+  });
   best = 0;
   phase: Phase | "loading" | "error" = "loading";
   private shop?: ShopUI;
@@ -37,6 +62,11 @@ export class GameUI {
     this.record.hidden = true;
   };
   constructor() {
+    this.effects.className = "active-effects";
+    this.effects.setAttribute("role", "group");
+    this.effects.setAttribute("aria-label", "Активные эффекты; ! — опасный эффект");
+    this.effects.hidden = true;
+    this.app.querySelector(".hud")!.append(this.effects);
     try {
       const stored = Number(localStorage.getItem("dinoplat-3d-best"));
       this.best = Number.isFinite(stored) ? Math.max(0, Math.floor(stored)) : 0;
@@ -141,6 +171,7 @@ export class GameUI {
     this.element("shop-message").textContent = message;
   }
   update(game: Simulation) {
+    this.updateEffects(game);
     const values0 = game.wallet.coins,
       values1 = game.wallet.diamonds,
       values2 = game.health.lives,
@@ -180,6 +211,23 @@ export class GameUI {
     this.cameraButton.disabled =
       (game.phase !== "running" && game.phase !== "dying") ||
       !game.health.lives;
+  }
+  private updateEffects(game: Simulation) {
+    let active = false;
+    for (let i = 0; i < this.effectSlots.length; i++) {
+      const slot = this.effectSlots[i];
+      const remaining = game.bonuses.remaining[slot.kind];
+      const seconds = game.phase === "running" && Number.isFinite(remaining)
+        ? Math.max(0, Math.min(slot.times.length - 1, Math.ceil(remaining))) : 0;
+      if (seconds > 0) active = true;
+      if (slot.shown === seconds) continue;
+      slot.shown = seconds;
+      slot.element.hidden = seconds === 0;
+      if (seconds === 0) continue;
+      slot.countdown.textContent = slot.times[seconds];
+      slot.element.setAttribute("aria-label", slot.labels[seconds]);
+    }
+    if (this.effects.hidden === active) this.effects.hidden = !active;
   }
   show(game: Simulation) {
     const phase = game.phase;
@@ -233,6 +281,7 @@ export class GameUI {
     this.selectSection(visible ? "settings" : "home");
   }
   error(error: unknown) {
+    this.effects.hidden = true;
     this.stopRecord();
     this.selectSection("home");
     this.phase = "error";
@@ -245,6 +294,7 @@ export class GameUI {
     this.action.textContent = "ЕЩЁ РАЗ";
   }
   graphicsLost() {
+    this.effects.hidden = true;
     this.stopRecord();
     this.showPause();
     this.overlay.hidden = false;
@@ -253,6 +303,7 @@ export class GameUI {
     (this.element("resume") as HTMLButtonElement).disabled = true;
   }
   dispose() {
+    this.effects.remove();
     this.stopRecord();
     this.lifecycle.abort();
     this.shop?.dispose();

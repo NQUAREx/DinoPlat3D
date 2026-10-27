@@ -208,9 +208,13 @@ test("continuous safe routes have bounded slope across unbounded X", () => {
     }
   }
 });
-test("100 seeds: safe route survives 5 minutes at max speed with 300ms reaction and all 3 lives", () => {
+test("100 seeds: unassisted safe route survives 5 minutes at max speed with 300ms reaction and all 3 lives", () => {
   for (let seed = 1; seed <= 100; seed++) {
-    const game = new Simulation(seed);
+    // Validate terrain/obstacle reachability without optional effects changing
+    // the pilot's steering or masking hits through flight/invisibility.
+    const registry = ObjectRegistry.defaults();
+    for (let kind = ObjectKind.Jetpack; kind <= ObjectKind.Shake; kind++) registry.setWeight(kind, 0);
+    const game = new Simulation(seed, registry);
     let hits = 0, step = 0, firstHit = "";
     game.events.on(GameEvent.Hit, () => {
       hits++;

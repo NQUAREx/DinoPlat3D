@@ -1,6 +1,7 @@
 import { GameEvent, GameEvents } from "./events";
 import sprite from "./assets/audio-sprite.json";
 import { Tuning } from "./tuning";
+import { bonusKindForObject } from "./bonuses";
 
 type Cue = keyof typeof sprite;
 type Voice = { gain: GainNode; filter: BiquadFilterNode; source?: AudioBufferSourceNode; until: number };
@@ -74,6 +75,12 @@ export class GameSound {
         this.play("heal", 0.5, 1);
         this.play("coin", 0.2, 1.25, 0.1);
         this.play("coin", 0.18, 1.5, 0.2);
+      }),
+      events.on(GameEvent.Collected, (kind) => {
+        const bonus = bonusKindForObject(kind);
+        if (bonus === undefined) return;
+        this.play("diamond", 0.6, bonus >= 3 && bonus !== 4 ? 0.7 : 1.2);
+        this.play("coin", 0.25, 1.5, 0.12);
       }),
       events.on(GameEvent.Duck, () => this.play("duck", 0.28, 1.05)),
       events.on(GameEvent.Dive, () => this.play("duck", 0.35, 0.8)),

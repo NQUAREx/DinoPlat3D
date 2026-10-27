@@ -51,7 +51,7 @@ export class AnimatedDinosaur {
       }),
     ];
   }
-  update(game: Simulation, alpha: number, animate = true) {
+  update(game: Simulation, alpha: number, animate = true, opacityMultiplier = 1) {
     const distance = THREE.MathUtils.lerp(
       game.previousDistance,
       game.distance,
@@ -161,6 +161,10 @@ export class AnimatedDinosaur {
       this.material.opacity = 1;
       if (game.falling) this.mesh.position.y -= game.deathTime * 5;
     }
+    // Bonus transparency composes with immunity, including its original depth
+    // behavior on expiry. Shared cosmetic materials follow the same opacity.
+    this.material.opacity *= opacityMultiplier;
+    this.material.depthWrite = opacityMultiplier === 1;
     if (this.material.transparent !== this.material.opacity < 1) {
       this.material.transparent = this.material.opacity < 1;
       this.material.needsUpdate = true;

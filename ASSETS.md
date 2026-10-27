@@ -2,6 +2,16 @@
 
 All runtime assets are local static files, with no third-party CDN requests.
 
+## Temporary-effect UI
+
+- The seven bonus HUD/Help symbols map `src/bonuses.ts` icon keys to localized names and text glyphs in `src/help.ts`, using local/system fonts. Negative effects also have a textual ! warning; meaning does not rely on colour alone. No downloaded icon pack, remote font, new image texture or third-party artwork is added by this UI.
+- HUD slots and countdown labels are allocated once. Floating bonus notices reuse the twelve existing DOM labels, with a glyph fallback when no registered image exists. Existing coin/diamond/heart image attribution remains unchanged.
+
+## Original bonus models
+
+- `tools/build-bonus-models.mjs` authors the separate local `src/assets/bonus-models.glb`: seven original low-poly pickup meshes (jetpack, invisibility prism, coin magnet, blindness goggles, turbo bolt, reverse arrows and shake device) plus `effect-smoke`. Source is included under the project licence; no external models, texture maps or artwork are imported.
+- `BonusModels` loads the bundle once, validates named indexed meshes and owns cached geometry. The pickup fade pool shares32 slots across ten instanced banks, including the seven bonus models; pickup events do not create meshes or DOM nodes.
+
 ## Current volumetric world (2026-10-16)
 
 - `tools/build-biome-models.mjs` authors26 original indexed, packed-vertex-colour models into `src/assets/biome-models.glb` (181468bytes): three living trees, three dead trees, matching simplified LODs, three rocks, three grass clumps, shrub, reeds, flowers, stump, log, tumbleweed, bird body/wing. Trees≤248triangles, other models≤192; no texture maps or external decoders.

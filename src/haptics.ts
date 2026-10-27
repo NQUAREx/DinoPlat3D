@@ -1,4 +1,5 @@
 import { GameEvent, GameEvents } from "./events";
+import { bonusKindForObject } from "./bonuses";
 
 /** Unsupported browsers (notably iOS) are a deliberate silent no-op. */
 export class Haptics {
@@ -21,6 +22,9 @@ export class Haptics {
       events.on(GameEvent.Death, () => this.play(this.patterns.death, true)),
       events.on(GameEvent.Pickup, () => this.play(this.patterns.pickup)),
       events.on(GameEvent.Heal, () => this.play(this.patterns.heal)),
+      events.on(GameEvent.Collected, (kind) => {
+        if (bonusKindForObject(kind) !== undefined) this.play(this.patterns.heal);
+      }),
     ];
   }
   private play(pattern: number | number[], force = false) {

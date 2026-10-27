@@ -22,6 +22,8 @@ import { DinosaurCosmetics } from "./dinosaur-cosmetics";
 import { MenuPreview } from "./menu-preview";
 import { Tuning } from "./tuning";
 import { PickupEffects } from "./pickup-effects";
+import { BonusModels } from "./bonus-models";
+import { BonusVisuals } from "./bonus-visuals";
 
 /** Sole GPU owner. Only visible numeric cells become instances; no object churn. */
 export class View {
@@ -47,6 +49,10 @@ export class View {
   private readonly dust: FootDust;
   private readonly feedback: FloatingFeedback;
   private readonly pickupEffects: PickupEffects;
+  private bonusModels?: BonusModels;
+  private bonusVisuals?: BonusVisuals;
+  private initialization?: Promise<void>;
+  private disposed = false;
   private readonly reducedMotion = matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -247,10 +253,25 @@ export class View {
     ];
     this.resize();
   }
-  async initialize() {
+  initialize(): Promise<void> {
+    return this.initialization ??= this.initializeModels();
+  }
+  private async initializeModels() {
+    const models = await BonusModels.load();
+    if (this.disposed) { models.dispose(); return; }
+    this.bonusModels = models;
+    for (let kind = 0; kind < models.pickups.length; kind++)
+      this.registerObjectType(ObjectKind.Jetpack + kind, [models.pickups[kind]], this.pickupMaterial);
+    this.pickupEffects.addBonuses(models.pickups);
+    this.bonusVisuals = new BonusVisuals(models, this.dinosaur.mesh, this.scene, this.game, this.reducedMotion);
     for (const mesh of this.pickupEffects.meshes) mesh.visible = true;
-    await this.renderer.compileAsync(this.scene, this.rig.camera);
-    for (const mesh of this.pickupEffects.meshes) mesh.visible = false;
+    this.bonusVisuals.backpack.visible = this.bonusVisuals.turbo.visible = this.bonusVisuals.smoke.visible = true;
+    try {
+      await this.renderer.compileAsync(this.scene, this.rig.camera);
+    } finally {
+      for (const mesh of this.pickupEffects.meshes) mesh.visible = false;
+      this.bonusVisuals.reset();
+    }
   }
   registerObjectType(
     kind: ObjectKind,
@@ -308,6 +329,7 @@ export class View {
     this.preview.apply(inventory);
   }
   draw(alpha = 1, dt = 0) {
+    if (this.disposed) return;
     const game = this.game;
     const home =
       (game.phase === "ready" || game.phase === "over") && this.preview.visible;
@@ -315,7 +337,6 @@ export class View {
     this.lighting.update(
       game.previousTime + (game.time - game.previousTime) * alpha,
     );
-    this.renderer.setClearColor(this.lighting.fogColour);
     (this.scene.fog as THREE.Fog).color.copy(this.lighting.fogColour);
     (this.scene.fog as THREE.Fog).near = Tuning.camera.fogStart;
     (this.scene.fog as THREE.Fog).far = Tuning.camera.fogEnd;
@@ -324,6 +345,7 @@ export class View {
       game,
       alpha,
       this.rig.avatarVisible || this.rig.transitioning,
+      this.bonusVisuals?.avatarOpacity(game) ?? 1,
     );
     this.dinosaurShadow.update(
       this.dinosaur,
@@ -355,6 +377,8 @@ export class View {
       this.pose.z,
     );
     this.dinosaur.mesh.visible = this.rig.avatarVisible;
+    this.bonusVisuals?.update(game, this.pose, this.rig.camera, alpha);
+    this.renderer.setClearColor((this.scene.fog as THREE.Fog).color);
     if (!this.rig.avatarVisible) this.dinosaurShadow.mesh.visible = false;
     this.lighting.followView(this.rig.heading);
     const groundY =
@@ -415,7 +439,7 @@ export class View {
       if (world.kinds[i] === ObjectKind.Bird && world.motion[i] !== 3 && world.motion[i] !== 4) continue;
       const renderer = this.objectRenderers.get(world.kinds[i]);
       if (!renderer) continue;
-      const movingObject = world.motion[i] === 3 || world.motion[i] === 4;
+      const movingObject = world.motion[i] === 3 || world.motion[i] === 4 || world.magnetized[i] !== 0;
       const x = (movingObject ? world.previousX[i] + (world.x[i] - world.previousX[i]) * alpha : world.x[i]) - this.pose.x,
         forward = (movingObject ? world.previousZ[i] + (world.z[i] - world.previousZ[i]) * alpha : world.z[i]) - this.pose.z;
       const animated =
@@ -558,6 +582,12 @@ export class View {
       dustOriginZ: this.dust.lastOriginZ,
       dustSide: this.dust.lastSide,
       playerVisible: this.dinosaur.mesh.visible,
+      bonusBackpackVisible: !!this.bonusVisuals?.backpack.visible && this.dinosaur.mesh.visible,
+      bonusSmokeCount: this.bonusVisuals?.smoke.count ?? 0,
+      bonusFogStrength: this.bonusVisuals?.fogStrength ?? 0,
+      bonusShakeStrength: this.bonusVisuals?.shakeStrength ?? 0,
+      bonusTurboStrength: this.bonusVisuals?.turboStrength ?? 0,
+      bonusModelGeometries: this.bonusModels?.geometries.size ?? 0,
       width: this.renderer.domElement.width,
       height: this.renderer.domElement.height,
       bufferResizes: this.bufferResizes,
@@ -638,6 +668,8 @@ export class View {
     };
   }
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     for (const off of this.off) off();
     this.objectRenderers.dispose();
     this.wings.dispose();
@@ -652,6 +684,8 @@ export class View {
     this.dust.dispose();
     this.feedback.dispose();
     this.pickupEffects.dispose();
+    this.bonusVisuals?.dispose();
+    this.bonusModels?.dispose();
     this.ground.dispose();
     this.models.dispose();
     this.biomeModels.dispose();

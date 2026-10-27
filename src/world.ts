@@ -2,6 +2,7 @@ import { Rules, GridMath } from "./config";
 import colliders from "./assets/model-colliders.json";
 import { Tuning } from "./tuning";
 import { LandscapeField, Biome } from "./landscape";
+import { BONUS_DEFINITIONS, bonusKindForObject } from "./bonuses";
 
 export enum ObjectKind {
   Cactus,
@@ -15,6 +16,13 @@ export enum ObjectKind {
   Log,
   Bird,
   Tumbleweed,
+  Jetpack = 12,
+  Invisibility = 13,
+  Magnet = 14,
+  Blindness = 15,
+  Turbo = 16,
+  Reverse = 17,
+  Shake = 18,
 }
 export interface ColliderDefinition {
   readonly baseY?: number;
@@ -155,6 +163,15 @@ export class ObjectRegistry {
       blocking: true,
       colliders: pickup,
     });
+    for (const bonus of BONUS_DEFINITIONS)
+      registry.register({
+        kind: ObjectKind.Jetpack + bonus.kind,
+        weight: bonus.weight,
+        blocking: false,
+        colliders: pickup,
+        spawnGroup: "pickup",
+        animation: "spin-bob",
+      });
     for (const [kind, height, radius, count] of [
       [ObjectKind.Tree, 3.4, 0.58, 3],
       [ObjectKind.DeadTree, 3.1, 0.44, 3],
@@ -199,6 +216,8 @@ export class WorldSpawner {
   readonly lean = new Float32Array(Rules.poolSize);
   readonly fallStart = new Float64Array(Rules.poolSize).fill(-1);
   readonly motion = new Uint8Array(Rules.poolSize);
+  /** Magnet coins use previousX/Z/BaseY for the same renderer interpolation as movers. */
+  readonly magnetized = new Uint8Array(Rules.poolSize);
   private readonly velocityX = new Float32Array(Rules.poolSize);
   private readonly velocityZ = new Float32Array(Rules.poolSize);
   private readonly originalX = new Float32Array(Rules.poolSize);
@@ -225,6 +244,7 @@ export class WorldSpawner {
     this.seed = seed >>> 0 || 1;
     this.active.fill(0);
     this.motion.fill(0);
+    this.magnetized.fill(0);
     this.lean.fill(0);
     this.fallStart.fill(-1);
     this.dynamicCount = 0;
@@ -338,6 +358,7 @@ export class WorldSpawner {
     this.rows[slot] = row;
     this.active[slot] = 0;
     this.motion[slot] = 0;
+    this.magnetized[slot] = 0;
     this.lean[slot] = 0;
     this.fallStart[slot] = -1;
     this.generated++;
@@ -371,6 +392,9 @@ export class WorldSpawner {
       pickup,
     );
     if (!definition) return;
+    // Rare timed pickups use the existing one-shot slots, outside the opening.
+    // No extra candidates or respawns when speed/input/effects change.
+    if (bonusKindForObject(definition.kind) !== undefined && radius < 48) return;
     // Thin only new obstacle candidates, never already-visible objects or
     // pickups. Independent hash preserves deterministic visits at equal speed.
     const difficulty = Math.max(0, Math.min(1, (this.encounterSpeed - Rules.startSpeed) /
@@ -661,5 +685,6 @@ export class WorldSpawner {
   }
   consume(slot: number) {
     this.active[slot] = 0;
+    this.magnetized[slot] = 0;
   }
 }

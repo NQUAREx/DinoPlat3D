@@ -4,6 +4,7 @@ import { ObjectKind } from "./world";
 import type { Simulation } from "./simulation";
 import type { ModelLibrary } from "./models";
 import { Tuning } from "./tuning";
+import { bonusKindForObject } from "./bonuses";
 
 /** Bounded visual-only remnants. Rewards/collisions finish at contact, not fade. */
 export class PickupEffects {
@@ -13,7 +14,7 @@ export class PickupEffects {
   private readonly z = new Float64Array(32);
   private readonly y = new Float32Array(32);
   private readonly born = new Float64Array(32);
-  private readonly counts = new Uint8Array(3);
+  private readonly counts = new Uint8Array(10);
   private readonly matrix = new THREE.Matrix4();
   private readonly material = new THREE.MeshLambertMaterial({
     vertexColors: true,
@@ -33,7 +34,7 @@ export class PickupEffects {
   constructor(
     game: Simulation,
     models: Pick<ModelLibrary, "coin" | "diamond" | "heart">,
-    scene: THREE.Scene,
+    private readonly scene: THREE.Scene,
   ) {
     this.material.onBeforeCompile = (shader) => {
       shader.vertexShader =
@@ -84,8 +85,9 @@ export class PickupEffects {
                 ? 1
                 : kind === ObjectKind.Heart
                   ? 2
-                  : -1;
+                  : bonusKindForObject(kind) === undefined ? -1 : 3 + bonusKindForObject(kind)!;
         if (bank < 0) return;
+        if (!this.meshes[bank]) return;
         const i = this.cursor++ % 32;
         this.active[i] = 1;
         this.kind[i] = bank;
@@ -95,6 +97,26 @@ export class PickupEffects {
         this.born[i] = game.feedbackTime;
       }),
     ];
+  }
+  /** Installed once during async model preload, never on a pickup/frame. */
+  addBonuses(geometries: readonly THREE.BufferGeometry[]) {
+    if (this.meshes.length !== 3 || geometries.length !== 7)
+      throw new Error("Bonus pickup banks must be installed exactly once");
+    for (const geometry of geometries) {
+      const fade = new THREE.InstancedBufferAttribute(new Float32Array(32), 1)
+        .setUsage(THREE.DynamicDrawUsage);
+      const copy = geometry.clone();
+      copy.setAttribute("instanceFade", fade);
+      const mesh = new THREE.InstancedMesh(copy, this.material, 32);
+      mesh.count = 0;
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.fades.push(fade);
+      this.geometries.push(copy);
+      this.meshes.push(mesh);
+      this.scene.add(mesh);
+    }
   }
   update(time: number, x: number, z: number, angle: number) {
     this.counts.fill(0);
@@ -123,7 +145,7 @@ export class PickupEffects {
       }
       this.count++;
     }
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < this.meshes.length; i++) {
       const mesh = this.meshes[i];
       mesh.count = this.counts[i];
       mesh.visible = mesh.count > 0;

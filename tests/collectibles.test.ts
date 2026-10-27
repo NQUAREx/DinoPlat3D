@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { BONUS_DEFINITIONS } from "../src/bonuses.ts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { Simulation, STEP } from "../src/simulation.ts";
@@ -115,14 +116,17 @@ test("pickup requires real horizontal and vertical overlap; airborne player can 
 
 test("weighted pickup sampling is isolated from cactus density and matches 250:10:1", () => {
   const r = ObjectRegistry.defaults(),
-    counts = new Uint32Array(6);
-  for (let n = 0; n < 26100; n++) {
-    assert.equal(r.pick((n + 0.5) / 26100)?.kind, ObjectKind.Cactus);
-    counts[r.pick((n + 0.5) / 26100, true)!.kind]++;
+    counts = new Uint32Array(256),
+    samples = Math.round((261 + BONUS_DEFINITIONS.reduce((sum, bonus) => sum + bonus.weight, 0)) * 100);
+  for (let n = 0; n < samples; n++) {
+    assert.equal(r.pick((n + 0.5) / samples)?.kind, ObjectKind.Cactus);
+    counts[r.pick((n + 0.5) / samples, true)!.kind]++;
   }
   assert.equal(counts[ObjectKind.Coin], 25000);
   assert.equal(counts[ObjectKind.Diamond], 1000);
   assert.equal(counts[ObjectKind.Heart], 100);
+  for (const bonus of BONUS_DEFINITIONS)
+    assert.equal(counts[ObjectKind.Jetpack + bonus.kind], Math.round(bonus.weight * 100));
 });
 
 test("swept pickup collision follows bob rather than a static height", () => {

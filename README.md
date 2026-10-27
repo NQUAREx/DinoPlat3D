@@ -21,10 +21,26 @@ The Help tab contains the full icon-based manual and opens automatically on the 
 - Release a hold and make a separate upward swipe to jump. Downward swipe dives in the air or ducks for 0.85s on the ground. Vertical gestures never start steering.
 - A stationary hold classifies after 36ms, horizontal intent after 2.7px; a moving pending swipe is not converted to steering by a timer. A committed hold cannot later turn into a jump—use a separate gesture.
 - Consecutive top-left tabs open Home, Shop, Settings and Help before a run or after death. Pause is separate: Resume, Settings and Help. Sound effects and music have independent saved toggles. Camera shake stays fixed at290%; landing impact is50% stronger, respecting reduced motion. Portrait touch browsers only; keyboard/mouse and landscape gameplay are intentionally unsupported.
-- Damage displays a small 2D -1 heart notice and freezes the contact pose for one second, including fatal hits; then two seconds of immunity/blinking and temporary start speed. Pickups display +1 icons; a full-health heart displays MAX. Pause freezes timers and restart clears feedback.
+- Damage displays a small 2D -1 heart notice and freezes the contact pose for one second, including fatal hits; then two seconds of immunity/blinking and temporary start speed. Coins/diamonds/hearts display +1 icons; a full-health heart displays MAX. Bonus notices show the effect name and duration, with ! for negative effects. Pause freezes timers and restart clears feedback.
 - Coins/diamonds survive new runs via a validated, year-long, project-scoped cookie. Hearts restore one up to three. Browser privacy/deletion can clear storage; this is a client-side prototype economy, not secure server money.
 - Shop shows a sticky coin/diamond balance, refreshed after purchases. All menus share the world background. Home's fixed-scale character slowly rotates at a bounded30Hz; touch dragging changes rotation, never scale. Other menus remain event-driven. No extra WebGL context or background texture.
 - Flat-ground jump flight lasts about1.008s, with a4.020m apex. Take-off impulse15.96m/s adds the runner's current uphill/downhill vertical velocity; gravity stays31.68m/s². This prevents an uphill slope from immediately catching a jump. Jump/dive collisions remain swept.
+
+## Rare pickup effects
+
+Seven temporary effects share the pickup pool with coins, diamonds and hearts. Pickups activate immediately; collecting the same kind refreshes its full duration without stacking time or strength. Different kinds can run together. Timers freeze during pause and hit stop and reset for a new run. Compact icons and whole-second countdowns appear below the score only during play; negative effects carry an **!** marker. Help explains all effects and relative rarity.
+
+| Effect | Duration | Selection weight | Rule |
+| --- | --- | --- | --- |
+| Jetpack | 6s | 1.2 | Flies 5m above terrain, including water/lava/pits; fades down on expiry. Reach safe ground before descending. |
+| Invisibility | 8s | 1.5 | Prevents obstacle damage only. Water, lava and pits remain fatal when fallen into. |
+| Magnet | 10s | 2 | Attracts coins within 7m; other pickups are unaffected. |
+| Blindness (!) | 4s | 0.6 | Restricts visibility; hazards remain dangerous. |
+| Turbo | 5s | 1 | Adds 40% speed, capped at 26m/s while active (normal cap24m/s); grants no protection. |
+| Reverse (!) | 5s | 0.6 | Swaps left/right turning; jump/duck swipes remain unchanged. |
+| Shake (!) | 3s | 0.4 | Shakes the camera; system reduced-motion preference suppresses shaking. |
+
+Weights are relative selection weights, not percentages: coin250, diamond10, heart1. Negative pickups are intentional hazards to avoid. The HUD preallocates seven slots and countdown strings, mutating DOM only when displayed seconds or visibility change; pickup notices reuse the existing twelve-label pool.
 
 ## iPhone / Android rendering
 
@@ -43,7 +59,7 @@ Current wardrobe:110 items across24 dinosaur skins,23 hats,23 boots,20 watches a
 
 Settings → Author code unlocks a hidden developer tab and an in-run DEV button. Only a SHA-256 verifier is shipped; this is a convenience gate, **not authentication or protection**. A project-scoped `dinorun-developer=1` cookie remembers the device. All tuning values reset on reload.
 
-Live controls cover gameplay, generation, camera, terrain, lighting, audio, effects and rendering, plus separate +1000coin/+1000diamond actions. Changes are session-only; structural pool/GPU capacities are read-only. Generation edits can restore consumed candidates. No bonus system is implemented.
+Live controls cover gameplay, generation, camera, terrain, lighting, audio, effects and rendering, plus separate +1000coin/+1000diamond actions. Changes are session-only; structural pool/GPU capacities are read-only. Generation edits can restore consumed candidates. The seven temporary pickup effects are normal gameplay, independent of developer access.
 
 Audio-file verification in `npm test` requires development tools `ffmpeg` and `ffprobe`; GitHub CI installs them. They are unnecessary for playing, serving or building the static game. Isolated browser checks: `node tests/personal-record-browser.mjs` and `node tests/sound-browser.mjs` (installed Playwright browsers required).
 
@@ -105,13 +121,13 @@ Vite uses relative asset paths so the current `/DinoPlat3D/` subpath works on st
 
 ## Architecture and verification
 
-- `Simulation`, `WorldSpawner`, `ObjectRegistry`, wallet/health/events: numeric gameplay, fixed pools and extension contracts. Bonuses are not implemented; enemies/destruction remain inactive extension metadata.
+- `Simulation`, `BonusState`, `WorldSpawner`, `ObjectRegistry`, wallet/health/events: numeric gameplay, seven temporary pickup effects, fixed pools and extension contracts. Enemies/destruction remain inactive extension metadata.
 - `RenderPose`, `CameraRig`, `View`, instanced renderers and `RenderQuality`: one floating origin, delayed camera, LOD/culling and bounded adaptive rendering.
 - `LandscapeField`, `TerrainSurface`, `Ground`, `Scenery`, `LightingRig`, `CachedShadows`: stateless coordinate biomes/support/hazards, bounded volumetric terrain/decoration, one cached shadow map. Preserve the Three r186 instance-upload epoch fix.
 - `ModelLibrary`, `AnimatedDinosaur`, `FootDust`, `FloatingFeedback`: explicit GPU/animation/DOM ownership, no runtime model generation or per-pickup node creation.
 - `MobileBrowser`, `GestureRecognizer`, `GameUI`, `CurrencyCookies`, sound/haptics/settings: mobile lifecycle/gesture/UI/persistence, user-activated optional browser features.
 
-The expanded wardrobe retains only the equipped accessory meshes in the scene; switching models reuses their offline cached geometry. The pickup fade adds three bounded instanced banks/geometries, with no new textures. Warming previously unseen catalogue entries can increase GPU geometry residency up to the finite catalogue; compare restart memory only after warming the same selections. Fixed pools and finite tests are evidence of bounded resources, not proof against every leak. Physical-device FPS remains unmeasured. See [VERIFICATION.md](VERIFICATION.md), [ASSETS.md](ASSETS.md), and [AGENTS.md](AGENTS.md) for current results, licensing and mandatory invariants.
+The expanded wardrobe retains only the equipped accessory meshes in the scene; switching models reuses their offline cached geometry. The pickup fade uses ten bounded instanced banks/geometries (three ordinary pickups and seven bonuses), sharing32 visual slots with no new textures. Warming previously unseen catalogue entries can increase GPU geometry residency up to the finite catalogue; compare restart memory only after warming the same selections. Fixed pools and finite tests are evidence of bounded resources, not proof against every leak. Physical-device FPS remains unmeasured. See [VERIFICATION.md](VERIFICATION.md), [ASSETS.md](ASSETS.md), and [AGENTS.md](AGENTS.md) for current results, licensing and mandatory invariants.
 
 GPL-3.0-only; no warranty. Preserve source/attribution when redistributing. Original reference artwork and third-party notices are documented in ASSETS.md.
 
