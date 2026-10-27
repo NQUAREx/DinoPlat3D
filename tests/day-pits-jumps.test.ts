@@ -99,6 +99,8 @@ test("ground travel has equal surface speed uphill, downhill and on flat ground"
   const speed: number[] = [];
   for (const grade of [1, 0, -1]) {
     const g = new Simulation(1);
+    // Ground-speed comparison excludes optional flight and acceleration pickups.
+    for (let kind = ObjectKind.Jetpack; kind <= ObjectKind.Shake; kind++) g.world.registry.setWeight(kind, 0);
     g.landscape.heightAt = (_x, z) => grade * z;
     g.landscape.surfaceAt = () => Surface.Land;
     for (const kind of [ObjectKind.Cactus, ObjectKind.Coin, ObjectKind.Diamond, ObjectKind.Heart]) g.world.registry.setWeight(kind, 0);

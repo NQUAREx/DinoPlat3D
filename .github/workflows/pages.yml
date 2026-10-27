@@ -13,6 +13,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +27,20 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm test
       - run: npm run build
+      - name: Verify complete static artifact
+        run: |
+          node --input-type=module -e '
+            import { existsSync, readFileSync, readdirSync } from "node:fs";
+            const html = readFileSync("dist/index.html", "utf8");
+            for (const match of html.matchAll(/(?:src|href)="(\.\/assets\/[^"?#]+)/g)) {
+              if (!existsSync("dist/" + match[1])) throw Error("Missing asset: " + match[1]);
+            }
+            const assets = readdirSync("dist/assets");
+            for (const prefix of ["game-models-", "biome-models-", "bonus-models-", "index-"]) {
+              if (!assets.some(name => name.startsWith(prefix))) throw Error("Missing bundle: " + prefix);
+            }
+            console.log("Static HTML and required model bundles verified");
+          '
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -33,6 +48,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
