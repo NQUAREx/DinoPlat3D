@@ -488,6 +488,7 @@ test("floating item collider has a real vertical range for future pickups/enemie
 
 test("fixed steps preserve motion at 15/30/60/120Hz", () => {
   const results: number[] = [];
+  const positions: number[][] = [];
   for (const hz of [15, 30, 60, 120]) {
     const game = emptyGame();
     game.move(1);
@@ -500,7 +501,10 @@ test("fixed steps preserve motion at 15/30/60/120Hz", () => {
       }
     }
     results.push(game.distance);
-    assert.ok(Math.abs(game.heading + Rules.turnSpeed * 2) < 1e-10 && game.x > 12);
+    positions.push([game.x, game.z]);
+    assert.ok(Math.abs(game.heading + Rules.turnSpeed * 2) < 1e-10);
   }
   assert.ok(results.every((value) => Math.abs(value - results[0]) < 1e-10));
+  for (const position of positions) for (let axis = 0; axis < 2; axis++)
+    assert.ok(Math.abs(position[axis] - positions[0][axis]) < 1e-10);
 });

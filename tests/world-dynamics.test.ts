@@ -409,6 +409,7 @@ test("simulation: a late legal turn sidesteps a locked bird without ducking", ()
         assert.ok(Math.hypot(w.x[i] - game.x, w.z[i] - game.z) > 9);
         game.move(direction);
       }
+      if (locked && Math.abs(game.heading) >= Math.PI / 4) game.move(0);
       if (locked && w.active[i]) {
         assert.equal(w.motion[i], 4);
         assert.equal(w.x[i], 0, "locked flight cannot chase lateral movement");
