@@ -87,7 +87,7 @@ test("exhaust follows both rotated nozzles, is bounded, pauses/freezes, and reba
   f.avatar.rotation.set(.3, 1.4, 0);
   f.pose.x = 1e6; f.pose.z = -1e6;
   f.frame(); f.frame(.05);
-  assert.equal(f.visuals.smoke.count, 10);
+  assert.equal(f.visuals.smoke.count, 50);
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3();
   for (let side = 0; side < 2; side++) {
     f.visuals.smoke.getMatrixAt(side, matrix);
@@ -96,7 +96,7 @@ test("exhaust follows both rotated nozzles, is bounded, pauses/freezes, and reba
     assert.ok(position.distanceTo(expected) < 1e-5, "actual transformed nozzle");
   }
   for (let i = 0; i < 100; i++) f.frame();
-  assert.ok(f.visuals.smoke.count > 20 && f.visuals.smoke.count <= 160);
+  assert.ok(f.visuals.smoke.count > 20 && f.visuals.smoke.count <= 800);
   const frozen = f.visuals.smoke.instanceMatrix.array.slice();
   f.game.phase = "paused"; f.frame(.5);
   assert.deepEqual(f.visuals.smoke.instanceMatrix.array, frozen);

@@ -1,7 +1,7 @@
 /** Shared numeric rules, no rendering or browser dependencies. Forward is world Z. */
 export class Rules {
   static readonly step = 1 / 120;
-  static turnSpeed = 1.76;
+  static turnSpeed = 3.52;
   static blockingRadius = 0.22;
   static cactusHitScale = 0.65;
   static pickupSpawnChance = 0.9;

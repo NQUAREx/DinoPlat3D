@@ -27,7 +27,7 @@ test("shorter hold classification and sharper turning still exclude swipes", () 
   g.update(500);
   g.move(100, 440, 1);
   assert.equal(steering, 0);
-  assert.equal(Rules.turnSpeed, 1.76);
+  assert.equal(Rules.turnSpeed, 3.52);
 });
 
 test("forgiving cactus AABBs do not change rendering bounds or pickup reach", () => {

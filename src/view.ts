@@ -363,6 +363,7 @@ export class View {
       this.rig.transitioning
         ? dt
         : 0;
+    this.rig.flight = game.bonuses.active(0);
     this.rig.update(
       this.pose.distance,
       0,

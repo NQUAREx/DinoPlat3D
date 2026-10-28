@@ -27,6 +27,8 @@ export interface HeightSampler {
 
 /** Event-driven camera extension point; allocations happen only at construction. */
 export class CameraRig {
+  flight = false;
+  private flightBlend = 0;
   readonly camera = new PerspectiveCamera(CAMERA_FOV, 1, 0.2, CAMERA_FAR);
   private readonly current: CameraPose = {
     offsetX: 0,
@@ -180,7 +182,8 @@ export class CameraRig {
     const targetFovBoost = Math.min(Tuning.camera.slopeFov, Math.abs(this.terrainPitch) * Tuning.camera.slopeFov);
     this.slopeFovBoost += (targetFovBoost - this.slopeFovBoost) *
       (1 - Math.exp(-Math.max(0, dt) / Tuning.camera.slopeDelay));
-    const fov = p.fov + (Tuning.camera.frontFov - p.fov) * viewBlend + this.slopeFovBoost;
+    this.flightBlend += ((this.flight ? 1 : 0) - this.flightBlend) * (1 - Math.exp(-Math.max(0, dt) / .3));
+    const fov = Math.min(150, (p.fov + (Tuning.camera.frontFov - p.fov) * viewBlend + this.slopeFovBoost) * (1 + this.flightBlend));
     if (Math.abs(fov - this.camera.fov) > 0.001 || near !== this.camera.near) {
       this.camera.fov = fov;
       this.camera.near = near;

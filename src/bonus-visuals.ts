@@ -5,7 +5,7 @@ import type { BonusModels } from "./bonus-models";
 import type { Simulation } from "./simulation";
 import type { RenderPose } from "./render-pose";
 
-const SMOKE_CAPACITY = 160, SMOKE_LIFE = .7;
+const SMOKE_CAPACITY = 800, SMOKE_LIFE = .7;
 const FLAME = new THREE.Color(0xff4b16), FLAME_TIP = new THREE.Color(0xffd52a), ASH = new THREE.Color(0x92999d);
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -125,9 +125,9 @@ export class BonusVisuals {
     if (jet && dt > 0 && !this.reducedMotion) {
       this.backpack.updateWorldMatrix(true, false);
       this.exhaustDirection.set(0, -1, 0).transformDirection(this.backpack.matrixWorld);
-      this.emission += dt * 100;
+      this.emission += dt * 500;
       // At most three pairs per update; the fixed circular pool cannot grow.
-      const pairs = Math.min(10, Math.floor(this.emission));
+      const pairs = Math.min(50, Math.floor(this.emission));
       this.emission -= pairs;
       for (let pair = 0; pair < pairs; pair++) for (let side = 0; side < 2; side++) {
         const i = this.cursor++ % SMOKE_CAPACITY;
@@ -146,7 +146,7 @@ export class BonusVisuals {
       if (!this.life[i]) continue;
       const age = SMOKE_LIFE - this.life[i];
       const phase = age / SMOKE_LIFE;
-      const size = (.22 * (1 - phase) + .035) * Math.min(1, this.life[i] / .12);
+      const size = (.11 * (1 - phase) + .0175) * Math.min(1, this.life[i] / .12);
       const x = this.x[i] - pose.x + this.vx[i] * age;
       const y = this.y[i] + this.vy[i] * age + age * age * .3;
       const z = pose.z - this.z[i] + this.vz[i] * age;
