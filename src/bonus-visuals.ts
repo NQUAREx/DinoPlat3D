@@ -34,6 +34,9 @@ export class BonusVisuals {
   private emission = 0;
   private lastTime = NaN;
   private clock = 0;
+  private previousX = NaN;
+  private previousZ = NaN;
+  private previousY = NaN;
   private disposed = false;
   fogStrength = 0;
   shakeStrength = 0;
@@ -121,7 +124,18 @@ export class BonusVisuals {
       camera.updateMatrixWorld();
     }
 
-    for (let i = 0; i < SMOKE_CAPACITY; i++) this.life[i] = Math.max(0, this.life[i] - dt);
+    const height = this.avatar.position.y;
+    const carry = Math.max(0, 1 - 8 / Math.max(1, game.speed));
+    const dx = dt > 0 && Number.isFinite(this.previousX) ? (pose.x - this.previousX) * carry : 0;
+    const dz = dt > 0 && Number.isFinite(this.previousZ) ? (pose.z - this.previousZ) * carry : 0;
+    const dy = dt > 0 && Number.isFinite(this.previousY) ? (height - this.previousY) * .85 : 0;
+    this.previousX = pose.x; this.previousZ = pose.z; this.previousY = height;
+    // Carry the exhaust with the runner, leaving at most ~8m/s of backward
+    // slip: even at maximum flight speed the .7s trail stays near the nozzles.
+    for (let i = 0; i < SMOKE_CAPACITY; i++) {
+      this.life[i] = Math.max(0, this.life[i] - dt);
+      if (this.life[i]) { this.x[i] += dx; this.z[i] += dz; this.y[i] += dy; }
+    }
     if (jet && dt > 0 && !this.reducedMotion) {
       this.backpack.updateWorldMatrix(true, false);
       this.exhaustDirection.set(0, -1, 0).transformDirection(this.backpack.matrixWorld);
@@ -178,6 +192,7 @@ export class BonusVisuals {
     this.life.fill(0);
     this.cursor = this.emission = this.clock = 0;
     this.lastTime = NaN;
+    this.previousX = this.previousZ = this.previousY = NaN;
     this.fogStrength = this.shakeStrength = this.turboStrength = 0;
     this.backpack.visible = this.turbo.visible = this.smoke.visible = false;
     this.smoke.count = 0;

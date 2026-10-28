@@ -45,6 +45,9 @@ export class Simulation {
   private groundVelocity = 0;
   private jumpActive = false;
   private flightLanding = false;
+  private flightElapsed = 0;
+  private flightThrottle = 0;
+  private flightStartY = 0;
   private flightDescentSpeed = 0;
   private magnetWasActive = false;
   diving = false;
@@ -91,6 +94,7 @@ export class Simulation {
     this.groundVelocity = 0;
     this.jumpActive = false;
     this.flightLanding = false;
+    this.flightElapsed = this.flightThrottle = this.flightStartY = 0;
     this.flightDescentSpeed = 0;
     this.magnetWasActive = false;
     this.bonuses.reset();
@@ -203,6 +207,16 @@ export class Simulation {
     this.health.step(dt);
     this.bonuses.step(dt);
     const flying = this.bonuses.active(BonusKind.Jetpack);
+    if (flying) {
+      if (!this.flightElapsed) this.flightStartY = Math.max(0, this.y);
+      this.flightElapsed += dt;
+      const progress = Math.min(1, this.flightElapsed / 1.8);
+      this.flightThrottle = progress * progress * (3 - 2 * progress);
+    } else {
+      this.flightElapsed = 0;
+      this.flightThrottle *= Math.exp(-dt / .35);
+      if (this.flightThrottle < .001) this.flightThrottle = 0;
+    }
     const ducking = this.crouchRemaining > 0;
     this.crouchRemaining = Math.max(0, this.crouchRemaining - dt);
     this.crouch +=
@@ -235,7 +249,7 @@ export class Simulation {
     // turbo. Every movement, score and generation consumer sees the same cap.
     const turbo = this.bonuses.active(BonusKind.Turbo);
     const scoringSpeed = Math.min(turbo ? TURBO_MAX_SPEED : Rules.maxSpeed, this.runSpeed * (turbo ? 1.4 : 1));
-    const surfaceSpeed = flying ? this.runSpeed * 13.5 : scoringSpeed;
+    const surfaceSpeed = scoringSpeed + (this.runSpeed * 13.5 - scoringSpeed) * this.flightThrottle;
     this.speed = surfaceSpeed * (flying ? 1 : this.slopeSpeedFactor);
     this.distance += surfaceSpeed * dt;
     let scoreDt = dt;
@@ -295,8 +309,8 @@ export class Simulation {
       this.diving = false;
       this.crouch = this.crouchRemaining = 0;
       if (flying) {
-        const height = Math.max(0, this.previousY);
-        this.y = height + (5 - height) * (1 - Math.exp(-dt / (0.25 / 3)));
+        const lift = Math.min(1, this.flightElapsed / .9);
+        this.y = this.flightStartY + (5 - this.flightStartY) * lift * lift * (3 - 2 * lift);
         this.flightLanding = true;
         this.flightDescentSpeed = 0;
       } else {
