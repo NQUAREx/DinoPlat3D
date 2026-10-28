@@ -242,6 +242,8 @@ export class CameraRig {
     this.camera.updateMatrixWorld();
   }
   reset() {
+    this.flight = false;
+    this.flightBlend = 0;
     this.shake = this.shakeTime = 0;
     this.shakeAge = 0;
     this.walkingBlend = 0;
