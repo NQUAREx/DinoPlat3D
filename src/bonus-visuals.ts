@@ -146,9 +146,10 @@ export class BonusVisuals {
       for (let pair = 0; pair < pairs; pair++) for (let side = 0; side < 2; side++) {
         const i = this.cursor++ % SMOKE_CAPACITY;
         this.nozzle.set(side ? .19 : -.19, 0, 0).applyMatrix4(this.backpack.matrixWorld);
-        this.life[i] = SMOKE_LIFE;
-        this.x[i] = pose.x + this.nozzle.x;
-        this.z[i] = pose.z - this.nozzle.z;
+        const emissionAge = pair / 500;
+        this.life[i] = SMOKE_LIFE - emissionAge;
+        this.x[i] = pose.x + this.nozzle.x + Math.sin(pose.heading) * 8 * emissionAge;
+        this.z[i] = pose.z - this.nozzle.z - Math.cos(pose.heading) * 8 * emissionAge;
         this.y[i] = this.nozzle.y;
         this.vx[i] = this.exhaustDirection.x * 1.6;
         this.vy[i] = this.exhaustDirection.y * 1.6;
